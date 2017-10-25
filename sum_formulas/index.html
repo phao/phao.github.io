@@ -1,0 +1,101 @@
+<!DOCTYPE>
+<html>
+<head>
+  <script src="BigInt_BigRat.min.js"></script>
+  <script src="sum_formulas.js"></script>
+  
+  <script>
+    var worker;
+    var accumulated_output = window.localStorage.getItem("accumulated_output");
+    
+    if (accumulated_output === null) {
+      accumulated_output = "";
+    }
+    
+    if (typeof(Worker) !== "undefined") {
+      worker = null;
+    }
+    else {
+      worker = undefined;
+    }
+  </script>
+  
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+      tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]}
+    });
+  </script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.2/MathJax.js?config=TeX-AMS_HTML-full"></script>
+</head>
+
+<body onload="document.getElementById('power_input').focus()">
+  <p>Insert $p$ to get a formula for $\sum_{i=1}^{n}i^p$.
+  <em>This is currently really slow, you should stick to $p \lt 70$, and
+  even that might be too much.</em></p>
+  
+  <form onsubmit="return false;">
+    <input id="power_input" type="text" autocomplete="off">
+    <input type="submit" onclick="update_formula_output()" value="GO">
+    <button onclick="stop_computation()">STOP COMPUTATION</button>
+    <button onclick="clear_memory()">CLEAR MEMORY</button>
+  </form>
+  
+  <div id="outstack"></div>
+  
+  <script>
+    var out = document.getElementById("outstack");
+    out.innerHTML = accumulated_output;
+    
+    function stop_computation() {
+      if (worker !== null && worker !== undefined) {
+        worker.terminate();
+        worker = null;
+        out.innerHTML = accumulated_output;
+        MathJax.Hub.Typeset();
+      }
+    }
+    
+    function clear_memory() {
+      window.localStorage.setItem("accumulated_output", "");
+      accumulated_output = "";
+      out.innerHTML = accumulated_output;
+      MathJax.Hub.Typeset();
+    }
+    
+    function update_formula_output() {
+        p = document.getElementById("power_input").value;
+        p = parseInt(p);
+        
+        if (isNaN(p)) {
+          return false;
+        }
+        
+        out.innerHTML = "<p>Wait... Calculating for $\\sum_{i=1}^{n}i^{" + p + "}$.</p>" + accumulated_output;
+        MathJax.Hub.Typeset();
+        
+        if (worker === undefined) {
+          accumulated_output = "<p>$\\sum_{i=1}^{n}i^{" + p + "} = " + pol_latex(sum_formula(p), "n") + "$.</p>" + accumulated_output;
+          window.localStorage.setItem("accumulated_output", accumulated_output);
+          out.innerHTML = accumulated_output;
+          MathJax.Hub.Typeset();
+        }
+        else {
+          if (worker !== null) {
+            worker.terminate();
+          }
+          
+          worker = new Worker("sum_formulas_worker.js");
+          worker.postMessage(p);
+          worker.onmessage = function (event) {
+            accumulated_output = "<p>$\\sum_{i=1}^{n}i^{" + p + "} = " + event.data + "$.</p>" + accumulated_output;
+            out.innerHTML = accumulated_output;
+            window.localStorage.setItem("accumulated_output", accumulated_output);
+            worker.terminate();
+            worker = null;
+            MathJax.Hub.Typeset();
+          };
+        }
+      };
+  </script>
+</body>
+</html>
