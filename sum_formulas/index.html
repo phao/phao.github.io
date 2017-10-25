@@ -70,6 +70,10 @@
           return false;
         }
         
+        if (!Number.isInteger(p) || p < 0) {
+          return false;
+        }
+        
         out.innerHTML = "<p>Wait... Calculating for $\\sum_{i=1}^{n}i^{" + p + "}$.</p>" + accumulated_output;
         MathJax.Hub.Typeset();
         
