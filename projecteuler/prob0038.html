@@ -13192,7 +13192,7 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><em><a href="https://phao.github.io/projecteuler/index.html">Back to index</a></em></p>
+<p><em><a href="index.html">Back to index</a></em></p>
 <p>The problem: <a href="https://projecteuler.net/problem=38">https://projecteuler.net/problem=38</a>.</p>
 <p>Let's denote by $x @ n$ the concatenated product of $x$ and $(1, 2, 3, ..., n)$. It is clear that the number of digits of $x$ has to be 9 or less. Another thing is that for $x @ n$ be a 1 through 9 pandigital, need $d(x)n \leq 9$ since $d(x @ n) \geq n d(x)$ and we want $d(x @ n) = 9$.
 Another thing is that if $d(x) \geq 5$, then $x @ n$ can't be a 1 through 9 pandigital. This is because $n \geq 2$ (as it's specified in the problem statement), and then $d(x @ n) \geq n d(x) \geq 10 &gt; 9$.
@@ -13204,7 +13204,7 @@ So we need only to test numbers with $k$ digits, where $k \in \{1, 2, 3, 4\}.$</
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[1]:</div>
+<div class="prompt input_prompt">In&nbsp;[2]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">digits_of</span><span class="p">(</span><span class="n">num</span><span class="p">):</span>
