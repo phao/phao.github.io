@@ -13203,7 +13203,7 @@ div#notebook {
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[26]:</div>
+<div class="prompt input_prompt">In&nbsp;[30]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">p_with_max_sols</span> <span class="o">=</span> <span class="mi">1</span>
@@ -13215,7 +13215,7 @@ div#notebook {
     <span class="k">while</span> <span class="mi">3</span><span class="o">*</span><span class="n">a</span> <span class="o">&lt;</span> <span class="n">p</span><span class="p">:</span>
         <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="p">(</span><span class="n">p</span><span class="o">-</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">rat_a2_diffpa</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">p</span><span class="o">-</span><span class="n">a</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">rat_a2_diffpa</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">p</span> <span class="o">-</span> <span class="n">a</span> <span class="o">-</span> <span class="n">rat_a2_diffpa</span><span class="p">)</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">num_sols</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">a</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="k">return</span> <span class="n">num_sols</span>
@@ -13244,11 +13244,12 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>for 24 =&gt; 1
+<pre>for 12 =&gt; 1
+for 60 =&gt; 2
 for 120 =&gt; 3
-for 360 =&gt; 4
-for 420 =&gt; 5
-for 840 =&gt; 8
+for 240 =&gt; 4
+for 420 =&gt; 6
+for 840 =&gt; 9
 840
 </pre>
 </div>
