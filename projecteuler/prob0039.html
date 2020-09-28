@@ -13193,17 +13193,17 @@ div#notebook {
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <p><a href="index.html">Back to index</a>.</p>
-<p>The problem: <a href="https://projecteuler.net/problem=39">https://projecteuler.net/problem=39</a></p>
+<p>The problem: <a href="https://projecteuler.net/problem=39">https://projecteuler.net/problem=39</a>.</p>
 <p>We'll have a solution if, and only if, $(p - a - b)^2 = a^2 + b^2$. If we consider $a$ to be the length of the smallest side and $b$ to be the length of the other leg (notice that because $p$ is integer, then $b \neq a$ since $p = a + b + c$ and if $a = b$, we'd have $c = \sqrt{2}a$ and thus $p = (2+\sqrt{2})a$, a contradiction). From this, it seems we're good to start testing.</p>
-<p>We know that $a &lt; p$, of course, but it is also true that $b &lt; p - a$. Not just that, since $a$ is the least side length, we also know that $p &gt; 3a$ and, for similar reasons, $p &gt; 2b + a$. This will help with prunning.</p>
-<p>Another remark is that $(p - a - b)^2 = a^2 + b^2$ implies in both: $(p - a - b)^2 - a^2 = b^2$ and $(p - a - b)^2 - b^2 = a^2$. This gives $(p - a - 2b)(p-a) = a^2$ and $(p - b - 2a)(p-b) = b^2$. This will give more tests for prunning. We're specially interested in the fact that $p-a$ divides $a^2$.</p>
+<p>We know that $a &lt; p$, of course, but it is also true that $b &lt; p - a$. Not just that, since $a$ is the least side length, we also know that $p &gt; 3a$ and, for similar reasons, $p &gt; 2b + a$. This may help with prunning.</p>
+<p>Another remark is that $(p - a - b)^2 = a^2 + b^2$ implies in both: $(p - a - b)^2 - a^2 = b^2$ and $(p - a - b)^2 - b^2 = a^2$. This gives $(p - a - 2b)(p-a) = a^2$ and $(p - b - 2a)(p-b) = b^2$. This will give more tests for prunning. We're specially interested in the fact that $p-a$ divides $a^2$. In the case that it does, then we'll have a solution if, and only if, $p - a - \frac {a^2} {p-a}$ is even and $2b$ will be that number.</p>
 
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
-<div class="prompt input_prompt">In&nbsp;[19]:</div>
+<div class="prompt input_prompt">In&nbsp;[26]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="n">p_with_max_sols</span> <span class="o">=</span> <span class="mi">1</span>
@@ -13215,11 +13215,8 @@ div#notebook {
     <span class="k">while</span> <span class="mi">3</span><span class="o">*</span><span class="n">a</span> <span class="o">&lt;</span> <span class="n">p</span><span class="p">:</span>
         <span class="k">if</span> <span class="p">(</span><span class="n">a</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">%</span> <span class="p">(</span><span class="n">p</span><span class="o">-</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">rat_a2_diffpa</span> <span class="o">=</span> <span class="p">(</span><span class="n">a</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">p</span><span class="o">-</span><span class="n">a</span><span class="p">)</span>
-            <span class="n">b</span> <span class="o">=</span> <span class="n">a</span><span class="o">+</span><span class="mi">1</span>
-            <span class="k">while</span> <span class="mi">2</span><span class="o">*</span><span class="n">b</span> <span class="o">+</span> <span class="n">a</span> <span class="o">&lt;</span> <span class="n">p</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">p</span> <span class="o">-</span> <span class="n">a</span> <span class="o">-</span> <span class="mi">2</span><span class="o">*</span><span class="n">b</span> <span class="o">==</span> <span class="n">rat_a2_diffpa</span><span class="p">:</span>
-                    <span class="n">num_sols</span> <span class="o">+=</span> <span class="mi">1</span>
-                <span class="n">b</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">rat_a2_diffpa</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">num_sols</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="n">a</span> <span class="o">+=</span> <span class="mi">1</span>
     <span class="k">return</span> <span class="n">num_sols</span>
 
@@ -13247,12 +13244,10 @@ div#notebook {
 
 
 <div class="output_subarea output_stream output_stdout output_text">
-<pre>for 12 =&gt; 1
-for 60 =&gt; 2
+<pre>for 24 =&gt; 1
 for 120 =&gt; 3
-for 240 =&gt; 4
+for 360 =&gt; 4
 for 420 =&gt; 5
-for 720 =&gt; 6
 for 840 =&gt; 8
 840
 </pre>
