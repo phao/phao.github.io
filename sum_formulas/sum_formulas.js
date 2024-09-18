@@ -187,3 +187,47 @@ function pol_latex(pol, variable) {
   
   return out;
 }
+
+function sum_formula_rec(power) {
+  BR0 = bigRat.zero;
+  BR1 = bigRat.one;
+  BRm1 = bigRat.minusOne;
+
+  var binomial_coef_data = Array(power+2)
+  for (var i = 0; i <= power+1; i++) {
+    binomial_coef_data[i] = Array(i+1)
+    binomial_coef_data[i][0] = BR1;
+    binomial_coef_data[i][i] = BR1;
+  }
+
+  var binomial_coef = function (i,j) {
+    if (binomial_coef_data[i][j] == undefined) {
+      b_im1_jm1 = binomial_coef(i-1,j-1);
+      b_im1_j = binomial_coef(i-1,j);
+      binomial_coef_data[i][j] = b_im1_jm1.add(b_im1_j);
+    }
+    return binomial_coef_data[i][j];
+  }
+
+  np1_to_k = Array(power+2);
+  np1_to_k[0] = [BR1];
+  np1 = [BR1, BR1];
+  for (var k = 1; k <= power+1; k++) {
+    np1_to_k[k] = pol_mul(np1_to_k[k-1], np1);
+  }
+
+  pol_1 = [BR1];
+  the_pols = Array(power+1);
+  the_pols[0] = [BR0, BR1];
+
+  for (var k = 1; k <= power; k++) {
+    p = pol_sub(np1_to_k[k+1], pol_1);
+    for (var j = 2; j <= k+1; j++) {
+      p = pol_sub(p, pol_scalar_mul(binomial_coef(k+1, j), the_pols[k+1-j]));
+    }
+    inv_kp1_choose_1 = BR1.divide(binomial_coef(k+1, 1));
+    the_pols[k] = pol_scalar_mul(inv_kp1_choose_1, p);
+  }
+
+  return the_pols[power];
+}
