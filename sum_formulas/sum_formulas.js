@@ -154,7 +154,7 @@ function pol_latex(pol, variable) {
   put_plus = true;
   
   if (pol[0].compare(0) != 0) {
-    out += rat_latex(rat_latex(pol[0]));
+    out += rat_latex(pol[0]);
   }
   else {
     put_plus = false;
@@ -186,6 +186,10 @@ function pol_latex(pol, variable) {
   }
   
   return out;
+}
+
+function pol_sub(p1, p2) {
+  return pol_add(p1, pol_scalar_mul(bigRat.minusOne, p2));
 }
 
 function sum_formula_rec(power) {
