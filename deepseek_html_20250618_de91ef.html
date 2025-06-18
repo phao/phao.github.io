@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Conical Spirals Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: #000;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(20, 20, 30, 0.85);
+            border-radius: 15px;
+            padding: 20px;
+            width: 320px;
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 180, 255, 0.2);
+            z-index: 10;
+            max-height: calc(100vh - 40px); /* Fixed height relative to viewport */
+            overflow-y: auto; /* Enable vertical scrolling */
+            scrollbar-width: thin;
+            scrollbar-color: #64b4ff rgba(20, 20, 30, 0.85);
+        }
+        
+        /* Custom scrollbar for WebKit browsers */
+        #ui-panel::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #ui-panel::-webkit-scrollbar-track {
+            background: rgba(20, 20, 30, 0.5);
+            border-radius: 4px;
+        }
+        
+        #ui-panel::-webkit-scrollbar-thumb {
+            background-color: #64b4ff;
+            border-radius: 4px;
+            border: 1px solid rgba(100, 180, 255, 0.3);
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(100, 180, 255, 0.3);
+            position: sticky;
+            top: 0;
+            background: rgba(20, 20, 30, 0.85);
+            z-index: 1;
+        }
+        
+        .panel-header h2 {
+            font-size: 1.8rem;
+            color: #64b4ff;
+            text-shadow: 0 0 8px rgba(100, 180, 255, 0.5);
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group h3 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            color: #88ccff;
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 60px;
+            background: rgba(20, 20, 30, 0.85);
+            padding: 5px 0;
+            z-index: 1;
+        }
+        
+        .control-group h3 i {
+            margin-right: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .slider-container {
+            margin-bottom: 15px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .slider-label span:first-child {
+            color: #aad4ff;
+        }
+        
+        .slider-label span:last-child {
+            color: #64b4ff;
+            font-weight: bold;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: rgba(80, 130, 200, 0.3);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #64b4ff;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(100, 180, 255, 0.8);
+            transition: all 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #88ccff;
+            transform: scale(1.1);
+        }
+        
+        input[type="checkbox"] {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            -webkit-appearance: none;
+            background: rgba(80, 130, 200, 0.3);
+            border-radius: 12px;
+            outline: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        input[type="checkbox"]:checked {
+            background: rgba(100, 180, 255, 0.8);
+        }
+        
+        input[type="checkbox"]::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            background: #64b4ff;
+            transition: all 0.3s;
+            box-shadow: 0 0 5px rgba(100, 180, 255, 0.8);
+        }
+        
+        input[type="checkbox"]:checked::before {
+            left: 28px;
+            background: #fff;
+        }
+        
+        .checkbox-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 8px 0;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            font-size: 0.95rem;
+        }
+        
+        .checkbox-label i {
+            margin-right: 10px;
+            color: #64b4ff;
+            font-size: 1.1rem;
+        }
+        
+        .color-picker {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .color-picker label {
+            margin-right: 10px;
+            font-size: 0.95rem;
+            color: #aad4ff;
+        }
+        
+        .color-picker input {
+            width: 40px;
+            height: 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: transparent;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(to right, #0066cc, #0099ff);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(0, 153, 255, 0.5);
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: linear-gradient(to right, #0099ff, #00ccff);
+            box-shadow: 0 0 20px rgba(0, 204, 255, 0.8);
+            transform: translateY(-2px);
+        }
+        
+        .center-inputs {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .center-inputs input {
+            flex: 1;
+            padding: 8px;
+            background: rgba(40, 70, 120, 0.4);
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            border-radius: 5px;
+            color: #e0f0ff;
+            text-align: center;
+        }
+        
+        .center-inputs input:focus {
+            outline: none;
+            border-color: #64b4ff;
+            box-shadow: 0 0 8px rgba(100, 180, 255, 0.5);
+        }
+        
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(20, 20, 30, 0.7);
+            border-radius: 10px;
+            padding: 15px;
+            width: 300px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+            z-index: 10;
+        }
+        
+        .instructions h3 {
+            color: #64b4ff;
+            margin-bottom: 8px;
+        }
+        
+        .instructions ul {
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+            color: #aad4ff;
+        }
+        
+        .title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 2.2rem;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(100, 180, 255, 0.8);
+            z-index: 10;
+        }
+        
+        .title span {
+            color: #64b4ff;
+        }
+        
+        .conic-visual {
+            width: 100%;
+            height: 100px;
+            margin-top: 10px;
+            position: relative;
+            background: rgba(20, 40, 60, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(100, 180, 255, 0.2);
+        }
+        
+        .conic-visual .center-dot {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #64b4ff;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(100, 180, 255, 0.8);
+            z-index: 2;
+        }
+        
+        .conic-visual .cone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-left: 80px solid transparent;
+            border-right: 80px solid transparent;
+            border-bottom: 100px solid rgba(100, 180, 255, 0.15);
+            transform: translate(-50%, -30%) rotate(180deg);
+            transform-origin: center top;
+        }
+        
+        .conic-visual .spiral-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #ff3366;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px #ff3366;
+            z-index: 1;
+        }
+        
+        .ui-footer {
+            position: sticky;
+            bottom: 0;
+            background: rgba(20, 20, 30, 0.85);
+            padding-top: 15px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div class="title">3D <span>Conical</span> Spirals</div>
+        <div id="canvas-container"></div>
+        
+        <div id="ui-panel">
+            <div class="panel-header">
+                <h2>CONICAL SPIRALS</h2>
+            </div>
+            
+            <div class="control-group">
+                <h3><i class="icon">🌀</i> Spiral Properties</h3>
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Spiral Count</span>
+                        <span id="spiral-count-value">8</span>
+                    </div>
+                    <input type="range" id="spiral-count" min="1" max="20" value="8">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Spiral Length</span>
+                        <span id="spiral-length-value">5</span>
+                    </div>
+                    <input type="range" id="spiral-length" min="1" max="10" step="0.5" value="5">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Base Radius</span>
+                        <span id="radius-value">1.0</span>
+                    </div>
+                    <input type="range" id="radius" min="0.5" max="3" step="0.1" value="1.0">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Rotation Speed</span>
+                        <span id="rotation-speed-value">1.0</span>
+                    </div>
+                    <input type="range" id="rotation-speed" min="0" max="3" step="0.1" value="1.0">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3><i class="icon">📐</i> Conical Distribution</h3>
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Conic Radius</span>
+                        <span id="conic-radius-value">45°</span>
+                    </div>
+                    <input type="range" id="conic-radius" min="0" max="70" value="45">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Conic Height</span>
+                        <span id="conic-height-value">5.0</span>
+                    </div>
+                    <input type="range" id="conic-height" min="1" max="10" step="0.5" value="5.0">
+                </div>
+                
+                <div class="conic-visual">
+                    <div class="center-dot"></div>
+                    <div class="cone" id="cone-visual"></div>
+                    <div id="spiral-dots"></div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3><i class="icon">⚙️</i> Advanced Parameters</h3>
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Oscillation</span>
+                        <span id="oscillation-value">0.0</span>
+                    </div>
+                    <input type="range" id="oscillation" min="0" max="2" step="0.1" value="0.0">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Oscillation Speed</span>
+                        <span id="oscillation-speed-value">2.0</span>
+                    </div>
+                    <input type="range" id="oscillation-speed" min="0.5" max="5" step="0.1" value="2.0">
+                </div>
+                
+                <div class="color-picker">
+                    <label>Base Color:</label>
+                    <input type="color" id="base-color" value="#00aaff">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3><i class="icon">✨</i> Visual Effects</h3>
+                <div class="checkbox-container">
+                    <label class="checkbox-label">
+                        <i>💫</i> Glow Effect
+                    </label>
+                    <input type="checkbox" id="glow-effect" checked>
+                </div>
+                
+                <div class="checkbox-container">
+                    <label class="checkbox-label">
+                        <i>⏳</i> Dynamic Drawing
+                    </label>
+                    <input type="checkbox" id="dynamic-drawing" checked>
+                </div>
+                
+                <div class="checkbox-container">
+                    <label class="checkbox-label">
+                        <i>🎨</i> Color Variation
+                    </label>
+                    <input type="checkbox" id="color-variation" checked>
+                </div>
+            </div>
+            
+            <div class="ui-footer">
+                <button id="generate-btn">Generate Spirals</button>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>Controls Guide</h3>
+            <ul>
+                <li>Left-click + drag: Rotate view</li>
+                <li>Right-click + drag: Pan view</li>
+                <li>Scroll: Zoom in/out</li>
+                <li>Conic Radius: Controls spread of spirals</li>
+                <li>Panel is scrollable for more controls</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Main variables
+        let scene, camera, renderer, controls;
+        let spirals = [];
+        let centerPoint = new THREE.Vector3(0, 0, 0);
+        
+        // Parameters with default values
+        let params = {
+            spiralCount: 8,
+            spiralLength: 5,
+            baseRadius: 1.0,
+            rotationSpeed: 1.0,
+            oscillation: 0.0,
+            oscillationSpeed: 2.0,
+            baseColor: "#00aaff",
+            glowEffect: true,
+            dynamicDrawing: true,
+            colorVariation: true,
+            conicRadius: 45, // in degrees
+            conicHeight: 5.0
+        };
+        
+        // Initialize the application
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 15;
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Add orbit controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            
+            // Add ambient light
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+            scene.add(ambientLight);
+            
+            // Add directional light
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            // Create center point indicator
+            const centerGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+            const centerMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xffffff,
+                emissive: 0x00ffff,
+                emissiveIntensity: 0.5
+            });
+            const centerSphere = new THREE.Mesh(centerGeometry, centerMaterial);
+            centerSphere.position.copy(centerPoint);
+            scene.add(centerSphere);
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Generate initial spirals
+            generateSpirals();
+            
+            // Start animation loop
+            animate();
+        }
+        
+        // Setup UI event listeners
+        function setupEventListeners() {
+            // Sliders
+            document.getElementById('spiral-count').addEventListener('input', function() {
+                params.spiralCount = parseInt(this.value);
+                document.getElementById('spiral-count-value').textContent = this.value;
+                updateConicVisualization();
+            });
+            
+            document.getElementById('spiral-length').addEventListener('input', function() {
+                params.spiralLength = parseFloat(this.value);
+                document.getElementById('spiral-length-value').textContent = this.value;
+            });
+            
+            document.getElementById('radius').addEventListener('input', function() {
+                params.baseRadius = parseFloat(this.value);
+                document.getElementById('radius-value').textContent = this.value;
+            });
+            
+            document.getElementById('rotation-speed').addEventListener('input', function() {
+                params.rotationSpeed = parseFloat(this.value);
+                document.getElementById('rotation-speed-value').textContent = this.value;
+            });
+            
+            document.getElementById('conic-radius').addEventListener('input', function() {
+                params.conicRadius = parseFloat(this.value);
+                document.getElementById('conic-radius-value').textContent = this.value + '°';
+                updateConicVisualization();
+            });
+            
+            document.getElementById('conic-height').addEventListener('input', function() {
+                params.conicHeight = parseFloat(this.value);
+                document.getElementById('conic-height-value').textContent = this.value;
+                updateConicVisualization();
+            });
+            
+            document.getElementById('oscillation').addEventListener('input', function() {
+                params.oscillation = parseFloat(this.value);
+                document.getElementById('oscillation-value').textContent = this.value;
+            });
+            
+            document.getElementById('oscillation-speed').addEventListener('input', function() {
+                params.oscillationSpeed = parseFloat(this.value);
+                document.getElementById('oscillation-speed-value').textContent = this.value;
+            });
+            
+            // Checkboxes
+            document.getElementById('glow-effect').addEventListener('change', function() {
+                params.glowEffect = this.checked;
+                updateSpiralEffects();
+            });
+            
+            document.getElementById('dynamic-drawing').addEventListener('change', function() {
+                params.dynamicDrawing = this.checked;
+            });
+            
+            document.getElementById('color-variation').addEventListener('change', function() {
+                params.colorVariation = this.checked;
+                if (!params.dynamicDrawing) {
+                    updateSpiralColors();
+                }
+            });
+            
+            // Color picker
+            document.getElementById('base-color').addEventListener('input', function() {
+                params.baseColor = this.value;
+                if (!params.dynamicDrawing) {
+                    updateSpiralColors();
+                }
+            });
+            
+            // Generate button
+            document.getElementById('generate-btn').addEventListener('click', function() {
+                generateSpirals();
+            });
+            
+            // Window resize handler
+            window.addEventListener('resize', function() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Initial conic visualization
+            updateConicVisualization();
+        }
+        
+        // Update conic visualization
+        function updateConicVisualization() {
+            const container = document.getElementById('spiral-dots');
+            container.innerHTML = '';
+            
+            // Update cone size based on conic radius
+            const coneElement = document.getElementById('cone-visual');
+            const coneSize = Math.tan(THREE.MathUtils.degToRad(params.conicRadius)) * 100;
+            coneElement.style.borderLeft = `${coneSize}px solid transparent`;
+            coneElement.style.borderRight = `${coneSize}px solid transparent`;
+            
+            // Add spiral dots
+            const dotContainer = document.getElementById('spiral-dots');
+            for (let i = 0; i < params.spiralCount; i++) {
+                const angle = (i / params.spiralCount) * Math.PI * 2;
+                const coneAngle = THREE.MathUtils.degToRad(params.conicRadius);
+                
+                // Calculate position in the cone
+                const x = Math.sin(angle) * Math.sin(coneAngle) * 40;
+                const y = -Math.cos(angle) * Math.sin(coneAngle) * 40;
+                
+                const dot = document.createElement('div');
+                dot.className = 'spiral-dot';
+                dot.style.left = `calc(50% + ${x}px)`;
+                dot.style.top = `calc(50% + ${y}px)`;
+                
+                // Color variation
+                if (params.colorVariation) {
+                    const hue = (i / params.spiralCount) * 360;
+                    dot.style.background = `hsl(${hue}, 80%, 60%)`;
+                    dot.style.boxShadow = `0 0 8px hsl(${hue}, 80%, 60%)`;
+                }
+                
+                dotContainer.appendChild(dot);
+            }
+        }
+        
+        // Generate spirals based on parameters
+        function generateSpirals() {
+            // Remove existing spirals
+            spirals.forEach(spiral => {
+                scene.remove(spiral.line);
+            });
+            spirals = [];
+            
+            // Create new spirals
+            for (let i = 0; i < params.spiralCount; i++) {
+                createSpiral(i);
+            }
+        }
+        
+        // Create a single spiral
+        function createSpiral(index) {
+            const segments = 200;
+            const points = [];
+            
+            // Color calculation
+            let color;
+            if (params.colorVariation) {
+                // Create color variation based on base color
+                const baseColor = new THREE.Color(params.baseColor);
+                const hue = (baseColor.getHSL().h + (index / params.spiralCount) * 0.3) % 1;
+                color = new THREE.Color().setHSL(hue, 0.8, 0.6);
+            } else {
+                color = new THREE.Color(params.baseColor);
+            }
+            
+            // Create material with optional glow effect
+            const material = new THREE.LineBasicMaterial({
+                color: color,
+                linewidth: 2,
+                transparent: params.glowEffect,
+                opacity: params.glowEffect ? 0.9 : 1.0
+            });
+            
+            // Create geometry
+            const geometry = new THREE.BufferGeometry();
+            
+            // Create the line
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            
+            // Store spiral data
+            const spiral = {
+                index: index,
+                points: points,
+                geometry: geometry,
+                material: material,
+                line: line,
+                progress: 0,
+                visiblePoints: []
+            };
+            
+            spirals.push(spiral);
+        }
+        
+        // Update spiral effects
+        function updateSpiralEffects() {
+            spirals.forEach(spiral => {
+                spiral.material.transparent = params.glowEffect;
+                spiral.material.opacity = params.glowEffect ? 0.9 : 1.0;
+                spiral.material.needsUpdate = true;
+            });
+        }
+        
+        // Update spiral colors
+        function updateSpiralColors() {
+            spirals.forEach((spiral, index) => {
+                let color;
+                if (params.colorVariation) {
+                    // Create color variation based on base color
+                    const baseColor = new THREE.Color(params.baseColor);
+                    const hue = (baseColor.getHSL().h + (index / params.spiralCount) * 0.3) % 1;
+                    color = new THREE.Color().setHSL(hue, 0.8, 0.6);
+                } else {
+                    color = new THREE.Color(params.baseColor);
+                }
+                
+                spiral.material.color = color;
+                spiral.material.needsUpdate = true;
+            });
+        }
+        
+        // Update spiral points in real-time
+        function updateSpirals() {
+            const time = Date.now() * 0.001;
+            
+            spirals.forEach((spiral, index) => {
+                spiral.visiblePoints = [];
+                
+                // Calculate the number of points to show based on progress
+                const segments = 200;
+                let pointsToShow = segments;
+                
+                if (params.dynamicDrawing) {
+                    spiral.progress += 0.005 * params.rotationSpeed;
+                    if (spiral.progress > 1) spiral.progress = 0;
+                    pointsToShow = Math.floor(spiral.progress * segments);
+                }
+                
+                // Calculate cone parameters
+                const coneAngle = THREE.MathUtils.degToRad(params.conicRadius);
+                const spiralAngle = (index / params.spiralCount) * Math.PI * 2;
+                
+                // Calculate direction vector for this spiral in the cone
+                const direction = new THREE.Vector3(
+                    Math.sin(spiralAngle) * Math.sin(coneAngle),
+                    Math.cos(spiralAngle) * Math.sin(coneAngle),
+                    Math.cos(coneAngle)
+                ).normalize();
+                
+                // Generate points for the spiral
+                for (let i = 0; i <= pointsToShow; i++) {
+                    const t = i / segments;
+                    const angle = t * Math.PI * 2 * params.spiralLength;
+                    
+                    // Base spiral position
+                    const radius = params.baseRadius * (1 - t);
+                    let x = Math.cos(angle) * radius;
+                    let y = Math.sin(angle) * radius;
+                    let z = -t * params.conicHeight;
+                    
+                    // Apply oscillation
+                    if (params.oscillation > 0) {
+                        const oscillation = Math.sin(time * params.oscillationSpeed + angle * 2) * params.oscillation;
+                        x += Math.cos(angle) * oscillation;
+                        y += Math.sin(angle) * oscillation;
+                    }
+                    
+                    // Create a vector for the point in the spiral's local space
+                    const localPoint = new THREE.Vector3(x, y, z);
+                    
+                    // Rotate the point to align with the cone direction
+                    const axis = new THREE.Vector3(0, 0, 1).cross(direction).normalize();
+                    const rotationAngle = Math.acos(new THREE.Vector3(0, 0, 1).dot(direction));
+                    const rotationMatrix = new THREE.Matrix4().makeRotationAxis(axis, rotationAngle);
+                    localPoint.applyMatrix4(rotationMatrix);
+                    
+                    // Apply center point offset
+                    localPoint.add(centerPoint);
+                    
+                    spiral.visiblePoints.push(localPoint.x, localPoint.y, localPoint.z);
+                }
+                
+                // Update geometry
+                spiral.geometry.setAttribute('position', new THREE.Float32BufferAttribute(spiral.visiblePoints, 3));
+            });
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update controls
+            controls.update();
+            
+            // Update spirals
+            updateSpirals();
+            
+            // Render the scene
+            renderer.render(scene, camera);
+        }
+        
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
