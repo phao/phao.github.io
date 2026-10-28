@@ -42,6 +42,7 @@
 .neural-extra mjx-container[display="true"]{margin:.6em 0!important}
 .neural-extra a{color:var(--accent)}
 .persistence-examples{display:flex;justify-content:space-around;flex-wrap:wrap;gap:14px;margin:14px 0}
+.cluster-controls .fit-speed{display:block;width:100%;margin-top:5px}
 </style></head><body><header><span>AULA DE MACHINE LEARNING · MESTRADO</span><span>Cadeias → regimes → dados</span></header><main>
 <section class="slide active"><div class="eyebrow">Uma conversa entre tempo e geometria</div><h1>HMMs, clusterização<br>e MS-VAR</h1><p class="lead">Como descobrir padrões quando o mecanismo que os produz não é diretamente observado?</p><div class="box">Uma sequência pode alternar entre regimes. Cada regime deixa uma assinatura nos dados; a persistência e as transições contam outra parte da história.</div><p class="small">Use as setas do teclado ou os botões para navegar.</p></section>
 <section class="slide"><div class="eyebrow">1 · A peça temporal</div><h2>O que é uma cadeia de Markov?</h2><p>Imagine que uma certa dinâmica admite estados/regimes evoluindo com o tempo. Denote por $S_t$ o regime no instante $t$. A hipótese de Markov diz que, conhecido o estado atual, o passado anterior não acrescenta informação para escolher o próximo estado:</p><div class="box math">$$\Pr(S_{t+1}=j\mid S_t=i,S_{t-1},\ldots)=P_{ij}.$$</div><p>Cada linha de $P$ é uma distribuição de probabilidades: $P_{ij}\geq0$ e $\sum_jP_{ij}=1$. A distribuição inicial $\pi_i=\Pr(S_1=i)$ começa a história.</p><p>Se $P_{ii}$ é grande, o estado $i$ tende a persistir.</p></section>
@@ -193,6 +194,7 @@ Q(\theta\mid\theta^{\mathrm{ant}})
 <p class="small">A amostra é compartilhada com o outro widget. O ajuste recebe apenas os pontos.</p>
 <label>Grupos no ajuste K <input class="fit-k" type="number" min="1" max="20" value="3"></label>
 <button class="restart-fit">Reiniciar ajuste</button><button class="fit-step">Um passo</button><button class="fit-play">▶ Animar</button>
+<label>Velocidade: <output class="fit-speed-value">1</output> etapas/s<input class="fit-speed" type="range" min="0.5" max="30" step="0.5" value="1" aria-label="Velocidade da animação em etapas por segundo"></label>
 <label><input class="reveal-source" type="checkbox"> Revelar rótulos geradores</label>
 <details><summary>Parâmetros do modelo gerador</summary><div class="cluster-params"></div></details></div><div><svg class="cluster-plot" role="img" aria-label="Amostra 2D e ajuste de gmm"></svg><p class="cluster-status" aria-live="polite"></p><div class="cluster-legend"></div><p class="small source-summary"></p></div></div></section>
 <section class="slide"><div class="eyebrow">8 · Geometria</div><h2>K-means: proximidade aos centros</h2><div class="box math">$$\min_{z_1,\ldots,z_m,\mu_1,\ldots,\mu_N}\sum_{i=1}^m\lVert y_i-\mu_{z_i}\rVert^2.$$</div><p>Alternamos: atribuir cada ponto ao centro mais próximo; atualizar cada centro como a média dos pontos atribuídos. A atribuição é <strong>rígida</strong>.</p><div class="two"><p><strong>GMM:</strong> modelo probabilístico, grupos com covariâncias e incerteza.</p><p><strong>K-means:</strong> objetivo geométrico, distância euclidiana, sem probabilidades posteriores.</p></div><p class="small">Ambos dependem da escala das variáveis e da inicialização; K-means pode ter grupos vazios.</p></section>
@@ -204,6 +206,7 @@ Q(\theta\mid\theta^{\mathrm{ant}})
 <p class="small">A amostra é compartilhada com o outro widget. O ajuste recebe apenas os pontos.</p>
 <label>Grupos no ajuste K <input class="fit-k" type="number" min="1" max="20" value="3"></label>
 <button class="restart-fit">Reiniciar ajuste</button><button class="fit-step">Um passo</button><button class="fit-play">▶ Animar</button>
+<label>Velocidade: <output class="fit-speed-value">1</output> etapas/s<input class="fit-speed" type="range" min="0.5" max="30" step="0.5" value="1" aria-label="Velocidade da animação em etapas por segundo"></label>
 <label><input class="reveal-source" type="checkbox"> Revelar rótulos geradores</label>
 <details><summary>Parâmetros do modelo gerador</summary><div class="cluster-params"></div></details></div><div><svg class="cluster-plot" role="img" aria-label="Amostra 2D e ajuste de kmeans"></svg><p class="cluster-status" aria-live="polite"></p><div class="cluster-legend"></div><p class="small source-summary"></p></div></div></section>
 <section class="slide"><div class="eyebrow">9 · Dinâmica por regime</div><h2>MS-VAR: cada estado tem sua regressão</h2><p>Agora a média da observação depende também do passado observado. Para $t=p,\ldots,T-1$:</p><div class="box math">$$Y_t=c_{S_t}+\sum_{\ell=1}^{p}A_{\ell,S_t}Y_{t-\ell}+B_{S_t}x_t+\varepsilon_t,\qquad \varepsilon_t\mid S_t=k\sim\mathcal N(0,\Sigma_k).$$</div><p>$Y_t\in\mathbb R^d$; $x_t$ representa covariáveis dadas. $p$ é o número de defasagens, e cada estado tem seus próprios coeficientes e covariância.</p><p>Assim, um regime pode representar uma <em>dinâmica</em> diferente, não apenas uma nuvem em torno de outra média.</p></section>
@@ -212,7 +215,7 @@ Q(\theta\mid\theta^{\mathrm{ant}})
 
 <section class="slide neural-extra"><div class="eyebrow">Extra 1 · Elaborando HMMs e MS-VARs</div><h2>Onde uma rede neural entra?</h2>
 <p>Os estados continuam sendo regimes discretos. As redes podem dar mais flexibilidade a duas partes do modelo:</p>
-<div class="two"><div class="box"><h3>Escolha do próximo estado</h3><p>Num HMM homogêneo, a linha $P_{i,:}$ depende apenas do estado atual $i$.</p><div class="math">$$\text{histórico observado}\ \longrightarrow\ \text{rede}\ \longrightarrow\ P_t(i,:).$$</div><p>A chance de trocar de regime passa a depender do que acabou de acontecer.</p></div>
+<div class="two"><div class="box"><h3>Escolha do próximo estado</h3><p>Num HMM homogêneo, a linha $P_{i,:}$ depende apenas do estado atual $i.$</p><div class="math">$$\text{histórico observado}\ \longrightarrow\ \text{rede}\ \longrightarrow\ P_t(i,:).$$</div><p>A chance de trocar de regime passa a depender do que acabou de acontecer.</p></div>
 <div class="box"><h3>Dinâmica dentro do estado</h3><p>No MS-VAR, cada regime tem uma regressão linear sobre o passado.</p><div class="math">$$\text{passado}\ \longrightarrow\ \text{rede }k\ \longrightarrow\ m_{t,k}.$$</div><p>A média condicional $m_{t,k}$ pode descrever uma dinâmica não linear.</p></div></div>
 <p class="small">Podemos elaborar cada parte separadamente. Nas fórmulas a seguir, $K$ é o número de estados, $p$ é o número de defasagens e $Y_t\in\mathbb R^d$.</p>
 <p class="small">Referência para transições condicionadas por entradas: <a href="https://papers.nips.cc/paper/1994/hash/8065d07da4a77621450aa84fee5656d9-Abstract.html" target="_blank" rel="noopener">Bengio e Frasconi, An Input Output HMM Architecture (1994)</a>.</p>
@@ -225,7 +228,7 @@ P_t(i,j)&=\Pr(S_t=j\mid S_{t-1}=i,h_t)
 =\frac{\exp(a_{t,i,j})}{\sum_{\ell=1}^{K}\exp(a_{t,i,\ell})}.
 \end{aligned}$$</div>
 <p>O <em>softmax</em> transforma esses números em probabilidades positivas que somam $1$ em cada linha. O estado $i$ pode entrar por uma codificação <em>one-hot</em>, um vetor com $1$ na posição $i$ e $0$ nas demais.</p>
-<div class="box"><strong>Exemplo de mecanismo:</strong> para dois regimes, $P_t(1,2)=1/(1+\exp[-(b+w^\top h_t)])$. Se a variação recente de $Y$ aumenta $w^\top h_t$, aumenta também a chance de sair do regime 1 e ir para o 2.</div>
+<!-- <div class="box"><strong>Exemplo de mecanismo:</strong> para dois regimes, $P_t(1,2)=1/(1+\exp[-(b+w^\top h_t)])$. Se a variação recente de $Y$ aumenta $w^\top h_t$, aumenta também a chance de sair do regime 1 e ir para o 2.</div> --!>
 <p class="small">Os pesos $\eta$, incluindo $b,w$ no exemplo, são aprendidos. Se a rede ignorar $h_t$, recuperamos uma matriz de transição constante.</p></section>
 <section class="slide neural-extra"><div class="eyebrow">Extra 3 · Componentes autorregressivos neurais</div><h2>Da regressão linear à dinâmica não linear</h2>
 <div class="two"><div class="box"><h3>MS-VAR</h3><div class="math">$$m_{t,k}=c_k+\sum_{\ell=1}^{p}A_{\ell,k}Y_{t-\ell}+B_kx_t.$$</div><p>Cada regime transforma linearmente o passado observado.</p></div>
@@ -237,14 +240,7 @@ P_t(i,j)&=\Pr(S_t=j\mid S_{t-1}=i,h_t)
 <p class="small">Com $r_{\omega,k}=0$, recuperamos o MS-VAR. Com médias constantes e covariâncias por estado, recuperamos as emissões gaussianas do HMM. A letra $f$ aqui denota uma rede; a densidade de emissão continua sendo $\psi_{t,k}$.</p>
 <p class="small">Referência: <a href="https://globals.ieice.org/en_transactions/information/10.1587/e78-d_6_676/_p" target="_blank" rel="noopener">Tsuboka e Takada, Neural Predictive Hidden Markov Model (1995)</a>.</p>
 </section>
-<section class="slide neural-extra"><div class="eyebrow">Extra 4 · Memória observada e inferência</div><h2>O histórico pode ter uma representação neural</h2>
-<p>Em vez de uma janela fixa, podemos resumir as observações anteriores por uma rede recorrente, por exemplo uma GRU:</p>
-<div class="box math">$$h_t=R_\rho(h_{t-1},Y_{t-1},x_t),\qquad
-P_t(i,:)=\operatorname{softmax}F_\eta(h_t,i),\qquad m_{t,k}=f_{\omega,k}(h_t).$$</div>
-<div class="two"><div class="box"><h3>Ao avaliar uma sequência</h3><p>O prefixo $y_{0:p-1}$ e uma inicialização determinam $h_p$. Depois, cada $h_t$ é calculado com dados já observados.</p><p>Assim, $h_t$ é o mesmo para todas as trajetórias de estados consideradas pelo forward.</p></div>
-<div class="box"><h3>Por que essa escolha importa?</h3><p>Se a memória também recebesse todos os estados ocultos anteriores, ela poderia ser diferente em cada trajetória.</p><p>Nesse caso, um único valor forward por estado já não seria suficiente em geral.</p></div></div>
-<p class="small">A causalidade também importa para previsão: $P_t$ e $m_{t,k}$ usam o passado de $Y_t$, sem acessar $Y_t$ nem observações futuras. A cadeia passa a ter transições condicionadas pelo contexto observado.</p>
-</section>
+
 <section class="slide neural-extra"><div class="eyebrow">Extra 5 · A mesma construção da likelihood</div><h2>A rede muda os fatores; o forward ainda soma</h2>
 <p>Para a sequência observada, $h_t$ é conhecido. A densidade local e a soma das trajetórias tornam-se:</p>
 <div class="math">$$\psi_{t,k}=\mathcal N(y_t;m_{t,k}(h_t),\Sigma_k),\qquad
@@ -266,14 +262,7 @@ P_t(i,:)=\operatorname{softmax}F_\eta(h_t,i),\qquad m_{t,k}=f_{\omega,k}(h_t).$$
 +\sum_{t=p}^{T-1}\sum_k\gamma_t(k)\log\psi_{t,k}
 +\sum_{t=p+1}^{T-1}\sum_{i,j}\xi_t(i,j)\log P_t(i,j).$$</div>
 <p class="small">Em $Q$, usamos $\psi_{t,k}(\theta)$ e $P_t(i,j;\theta)$ recalculados com os parâmetros candidatos, mas mantemos $\gamma$ e $\xi$ fixos no passo M.</p></section>
-<section class="slide neural-extra"><div class="eyebrow">Extra 7 · O que os regimes passam a representar?</div><h2>Regimes de uma dinâmica aprendida</h2>
-<div class="two"><div class="box"><h3>Um exemplo escalar com dois regimes</h3>
-<div class="math">$$m_{t,k}=a_kY_{t-1}+b_k\tanh(Y_{t-1}),$$
-$$P_t(1,2)=\frac{1}{1+\exp[-(c+d|Y_{t-1}|)]}.$$</div>
-<p>A média de cada regime pode saturar ou mudar de inclinação. Para $d>0$, valores altos de $|Y_{t-1}|$ aumentam a chance de sair do regime 1.</p></div>
-<div class="box"><h3>Gerar uma previsão</h3><p>A partir do passado: calcule $h_t$ e $P_t$, amostre o próximo estado e então amostre $Y_t$ de sua gaussiana.</p><p>Para prever vários passos, incorpore as observações simuladas ao histórico e repita.</p><p class="small">O mesmo procedimento combina memória observada, persistência latente e dinâmica não linear.</p></div></div>
-<p class="small">Com $P_t$ variável, a permanência em um regime já não é, em geral, geométrica: não podemos resumir sua duração por $1/(1-P_{ii})$ constante. Uma rede flexível também não garante estabilidade das trajetórias; esse comportamento precisa ser examinado.</p>
-</section>
+
 
 </main><nav><button id="prev">← Anterior</button><button id="next">Próximo →</button><span id="counter"></span></nav>
 <script>
@@ -310,6 +299,7 @@ const el=(w,c)=>w.root.querySelector('.'+c);
 const normal=()=>Math.sqrt(-2*Math.log(Math.max(Number.MIN_VALUE,Math.random())))*Math.cos(2*Math.PI*Math.random());
 const squared=(a,b)=>(a[0]-b[0])**2+(a[1]-b[1])**2;
 function stop(w){if(w.timer!==null)clearInterval(w.timer);w.timer=null;el(w,'fit-play').textContent='▶ Animar'}
+function startAnimation(w){if(w.converged)return;w.timer=setInterval(()=>advance(w),1000/Number(el(w,'fit-speed').value));el(w,'fit-play').textContent='❚❚ Pausar'}
 function assignments(w){return data.map(p=>{let best=0;for(let j=1;j<w.k;j++)if(squared(p.v,w.means[j])<squared(p.v,w.means[best]))best=j;return best})}
 function expectation(w){
  let nll=0;
@@ -411,7 +401,8 @@ function initialize(){
   el(w,'sample-size').onchange=()=>widgets.forEach(other=>el(other,'sample-size').value=el(w,'sample-size').value);
   el(w,'sample-data').onclick=sample;el(w,'restart-fit').onclick=()=>restart(w);
   el(w,'fit-k').onchange=()=>restart(w);el(w,'fit-step').onclick=()=>{stop(w);advance(w)};
-  el(w,'fit-play').onclick=()=>{if(w.timer!==null)stop(w);else if(!w.converged){w.timer=setInterval(()=>advance(w),850);el(w,'fit-play').textContent='❚❚ Pausar'}};
+  el(w,'fit-play').onclick=()=>{if(w.timer!==null)stop(w);else startAnimation(w)};
+  el(w,'fit-speed').oninput=()=>{el(w,'fit-speed-value').textContent=el(w,'fit-speed').value;if(w.timer!==null){stop(w);startAnimation(w)}};
   el(w,'reveal-source').onchange=()=>drawCluster(w);
  });
  sample();
