@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HMMs, clusterização e MS-VAR</title>
+<script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']]},svg:{fontCache:'global'}};</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script><script defer src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#101626;--panel:#1b2639;--ink:#edf4ff;--muted:#b5c5db;--accent:#71e0c3;--warm:#ffca79}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:20px/1.5 system-ui,sans-serif}header{display:flex;justify-content:space-between;align-items:center;padding:12px 4vw;border-bottom:1px solid #34425b;font-size:.75em;color:var(--muted)}main{max-width:1440px;margin:auto;padding:2vh 5vw 72px}.slide{display:none}.slide.active{display:block}h1,h2{line-height:1.12;letter-spacing:-.035em;margin:.2em 0 .5em}h1{font-size:clamp(2.3rem,5vw,4.8rem)}h2{font-size:clamp(1.8rem,3.2vw,3rem)}h3{color:var(--accent);margin:.6em 0}p,li{max-width:1100px}li{margin:.45em 0}.eyebrow{color:var(--accent);text-transform:uppercase;font-weight:700;letter-spacing:.14em;font-size:.7em}.lead{font-size:1.3em;color:var(--muted)}.box{background:var(--panel);border:1px solid #34445d;border-radius:16px;padding:14px 20px;margin:12px 0}.two{display:grid;grid-template-columns:1fr 1fr;gap:22px}.small{font-size:.78em;color:var(--muted)}.highlight{color:var(--warm)}button,input{font:inherit}button{cursor:pointer;border:1px solid #526881;background:#263b51;color:var(--ink);border-radius:9px;padding:7px 13px}button:hover{background:#36536a}button:focus-visible,input:focus-visible{outline:3px solid var(--warm)}nav{position:fixed;bottom:0;left:0;right:0;background:#101626ed;border-top:1px solid #34425b;padding:9px 4vw;display:flex;gap:12px;align-items:center;z-index:10}nav span{margin-left:auto;color:var(--muted);font-size:.8em}.sim{display:grid;grid-template-columns:minmax(230px,280px) 1fr;gap:14px;font-size:.72em}.controls{background:var(--panel);padding:12px;border-radius:12px;max-height:58vh;overflow:auto}.controls label{display:block;margin:6px 0}.controls input[type=number]{width:80px;background:#101626;color:white;border:1px solid #64748b;border-radius:5px;padding:3px}.controls input[type=range]{width:100%}.controls button{margin:3px}.plots{min-width:0}.plots svg{width:100%;height:clamp(180px,28vh,290px);background:#111c2b;border-radius:12px}.matrix{overflow:auto;max-height:135px}.matrix table{border-collapse:collapse;font-size:.9em}.matrix td,.matrix th{padding:3px 7px;border:1px solid #42516a;text-align:right}.state-row{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center}.state-row input{width:62px!important}.legend{display:flex;flex-wrap:wrap;gap:10px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}.math{overflow-x:auto}.markov-figure{display:grid;grid-template-columns:minmax(0,2fr) minmax(220px,1fr);gap:18px;align-items:center}.markov-figure > svg{width:100%;height:auto;max-height:45vh;background:#111c2b;border-radius:14px}.edge-label{fill:#edf4ff;font-size:14px;font-weight:700;text-anchor:middle;paint-order:stroke;stroke:#101626;stroke-width:5px;stroke-linejoin:round}.state-node circle{fill:#263b51;stroke:#71e0c3;stroke-width:3}.state-node text{fill:#edf4ff;font-size:22px;font-weight:700;text-anchor:middle}.state-variance{margin:6px 0;padding-top:5px;border-top:1px solid #3a4b62}.state-variance .small{display:block}.warn{color:#ffcf88}@media(max-width:800px){body{font-size:17px}.two,.sim,.markov-figure{grid-template-columns:1fr}.controls{max-height:38vh}.plots svg{height:220px}main{padding-bottom:80px}.markov-figure > svg{max-height:none}}
+#cloud{cursor:grab;touch-action:none;overflow:hidden}#cloud:active{cursor:grabbing}.plot-tools{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:6px 0}
+
+.cluster-widget{display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;font-size:.72em}
+.cluster-controls{background:var(--panel);padding:12px;border-radius:12px}
+.cluster-controls label{display:block;margin:6px 0}.cluster-controls select{width:100%;background:#101626;color:var(--ink);padding:5px;font:inherit}
+.cluster-controls input[type=number]{width:70px;background:#101626;color:var(--ink);padding:3px;border:1px solid #64748b;font:inherit}
+.cluster-controls button{margin:4px 2px;padding:5px 8px}.cluster-plot{width:100%;height:clamp(220px,34vh,370px);background:#111c2b;border-radius:12px}
+.cluster-status{min-height:3em;margin:6px 0}.cluster-legend{display:flex;gap:10px;flex-wrap:wrap}.cluster-params{font-size:.85em;margin-top:8px;color:var(--muted)}
+@media(max-width:800px){.cluster-widget{grid-template-columns:1fr}.cluster-plot{height:260px}}
+
+.plots{display:flex;flex-direction:column;gap:8px;min-height:0}
+.plots #cloud{flex:1 1 0;min-height:180px;height:auto;display:block}
+#hmm-details{flex:0 1 auto;min-height:24px;overflow:auto}
+#hmm-details summary{cursor:pointer;color:var(--accent);padding:4px 0;position:sticky;top:0;background:var(--bg);z-index:1}
+#hmm-details[open]{max-height:calc(100% - 188px)}
+#hmm-details:not([open]){flex-shrink:0}
+
+.hmm-emission-graph{display:block;width:100%;height:min(47vh,430px);background:#111c2b;border-radius:14px}
+.hmm-edge-label{fill:#edf4ff;font-size:21px;text-anchor:middle;paint-order:stroke;stroke:#111c2b;stroke-width:5px;stroke-linejoin:round}
+.hmm-graph-key{display:flex;justify-content:center;flex-wrap:wrap;gap:12px 30px;margin:8px 0}
+
+.compact-math-slide>p{margin:10px 0}
+.compact-math-slide mjx-container[display="true"]{margin:.55em 0!important}
+.compact-math-grid .box,.em-counts-grid .box{margin:0;padding:14px 18px;min-width:0}
+.compact-math-slide h3{font-size:1.05em;margin:0 0 10px}
+.compact-math-slide .box p{font-size:.87em;margin:10px 0 0}
+.compact-math-slide .box p.small{font-size:.78em}
+.em-counts-grid{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:18px}
+.em-update{display:grid;grid-template-columns:minmax(250px,.8fr) minmax(0,1.2fr);gap:20px;align-items:center;margin-top:8px}
+@media(max-width:800px){.em-counts-grid,.em-update{grid-template-columns:1fr}}
+
+.neural-extra>p{margin:10px 0}.neural-extra h3{font-size:1.08em;margin:0 0 10px}
+.neural-extra .box{padding:14px 18px;margin:8px 0;min-width:0}
+.neural-extra .box p{font-size:.9em;margin:10px 0}
+.neural-extra .box p.small{font-size:.78em}
+.neural-extra mjx-container[display="true"]{margin:.6em 0!important}
+.neural-extra a{color:var(--accent)}
+.persistence-examples{display:flex;justify-content:space-around;flex-wrap:wrap;gap:14px;margin:14px 0}
+</style></head><body><header><span>AULA DE MACHINE LEARNING · MESTRADO</span><span>Cadeias → regimes → dados</span></header><main>
+<section class="slide active"><div class="eyebrow">Uma conversa entre tempo e geometria</div><h1>HMMs, clusterização<br>e MS-VAR</h1><p class="lead">Como descobrir padrões quando o mecanismo que os produz não é diretamente observado?</p><div class="box">Uma sequência pode alternar entre regimes. Cada regime deixa uma assinatura nos dados; a persistência e as transições contam outra parte da história.</div><p class="small">Use as setas do teclado ou os botões para navegar.</p></section>
+<section class="slide"><div class="eyebrow">1 · A peça temporal</div><h2>O que é uma cadeia de Markov?</h2><p>Imagine que uma certa dinâmica admite estados/regimes evoluindo com o tempo. Denote por $S_t$ o regime no instante $t$. A hipótese de Markov diz que, conhecido o estado atual, o passado anterior não acrescenta informação para escolher o próximo estado:</p><div class="box math">$$\Pr(S_{t+1}=j\mid S_t=i,S_{t-1},\ldots)=P_{ij}.$$</div><p>Cada linha de $P$ é uma distribuição de probabilidades: $P_{ij}\geq0$ e $\sum_jP_{ij}=1$. A distribuição inicial $\pi_i=\Pr(S_1=i)$ começa a história.</p><p>Se $P_{ii}$ é grande, o estado $i$ tende a persistir.</p></section>
+<section class="slide"><div class="eyebrow">2 · Uma cadeia em figura</div><h2>Três estados, nove transições</h2><p>De cada estado, as setas mostram para onde a cadeia pode ir no próximo passo. O número junto à seta é a probabilidade da transição; por exemplo, de $A$ para $B$ a chance é $20\%$.</p><div class="markov-figure"><svg viewBox="0 0 760 330" role="img" aria-label="Grafo dirigido de uma cadeia de Markov com três estados e probabilidades de transição">
+<defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#91a5bd"/></marker></defs>
+<g fill="none" stroke="#91a5bd" stroke-width="2" marker-end="url(#arrow)">
+<path d="M155 82 C225 20 315 20 370 82"/><path d="M390 96 C330 158 230 158 170 96"/>
+<path d="M430 82 C500 20 590 20 645 82"/><path d="M665 96 C605 158 505 158 445 96"/>
+<path d="M170 118 C250 250 540 250 630 118"/><path d="M630 132 C530 285 270 285 170 132"/>
+<path d="M118 62 C55 12 35 105 93 109"/><path d="M398 62 C335 12 315 105 373 109"/><path d="M678 62 C615 12 595 105 653 109"/></g>
+<g class="edge-label"><text x="260" y="36">20%</text><text x="260" y="151">15%</text><text x="540" y="36">15%</text><text x="540" y="151">25%</text><text x="390" y="239">10%</text><text x="390" y="279">10%</text><text x="37" y="32">70%</text><text x="317" y="32">70%</text><text x="597" y="32">65%</text></g>
+<g class="state-node"><circle cx="140" cy="100" r="34"/><text x="140" y="107">A</text><circle cx="420" cy="100" r="34"/><text x="420" y="107">B</text><circle cx="700" cy="100" r="34"/><text x="700" y="107">C</text></g></svg>
+<div class="box math">$$P=\begin{pmatrix}.70&.20&.10\\.15&.70&.15\\.10&.25&.65\end{pmatrix}$$<p class="small">Linhas = estado de origem; colunas = destino. Em cada linha, as probabilidades somam $100\%$.</p></div></div></section>
+
+
+<section class="slide neural-extra"><div class="eyebrow">Cadeia de Markov · Persistência</div><h2>Quanto tempo ficamos em um estado?</h2>
+<p>Numa cadeia homogênea, seja $q=P_{ii}<1$. A cada passo no estado $i$, permanecemos nele com probabilidade $q$ e saímos com probabilidade $1-q$.</p>
+<div class="two"><div class="box"><h3>Uma duração geométrica</h3><p>$D$ conta os instantes consecutivos no estado $i$ durante uma visita, incluindo o instante de entrada.</p>
+<div class="math">$$\Pr(D=d)=q^{d-1}(1-q),\quad d=1,2,\ldots.$$</div>
+<p class="small">Para durar $d$ instantes: fazemos $d-1$ autotransições e depois saímos.</p></div>
+<div class="box"><h3>Duração média, via série geométrica</h3><p>Somamos cada duração $d$, ponderada por sua probabilidade. Como $0\le q<1$:</p><div class="math">$$\begin{aligned}
+\mathbb E[D]
+&=\sum_{d=1}^{\infty}d\,q^{d-1}(1-q)
+=(1-q)\,\frac{d}{dq}\sum_{d=0}^{\infty}q^d\\
+& =\frac{1}{1-P_{ii}}.
+\end{aligned}$$</div></div></div>
+<div class="persistence-examples"><span>$P_{ii}=0{,}70\;\Rightarrow\;3{,}33$ instantes</span><span>$P_{ii}=0{,}95\;\Rightarrow\;20$ instantes</span><span>$P_{ii}=0{,}99\;\Rightarrow\;100$ instantes</span></div>
+<p class="small">É uma duração média, esperada. A unidade é o intervalo entre observações.</p></section>
+
+<section class="slide compact-math-slide"><div class="eyebrow">Cadeia de Markov · Construindo a loss</div><h2>Likelihood de uma trajetória observada</h2>
+<p>Observamos $s_0,\ldots,s_T$. Para $\theta=(\pi,P)$, a probabilidade da trajetória, vista como função de $\theta$, é:</p>
+<div class="math">$$L(\theta;s_{0:T})=\pi_{s_0}\,P_{s_0,s_1}\,P_{s_1,s_2}\cdots P_{s_{T-1},s_T}.$$</div>
+<div class="two compact-math-grid"><div class="box"><h3>Likelihood: produto de probabilidades</h3>
+<div class="math">$$L(\theta;s_{0:T})=\pi_{s_0}\prod_{t=1}^{T}P_{s_{t-1},s_t}.$$</div>
+<p>O fator $\pi_{s_0}$ escolhe o estado inicial. Cada $P_{s_{t-1},s_t}$ corresponde a uma transição observada.</p>
+</div><div class="box"><h3>Loss: negativo do logaritmo</h3>
+<div class="math">$$\begin{aligned}\mathcal L(\theta;s_{0:T})&=-\log L(\theta;s_{0:T})\\
+&=-\log\pi_{s_0}-\sum_{t=1}^{T}\log P_{s_{t-1},s_t}.\end{aligned}$$</div>
+<p>Maximizar a likelihood equivale a minimizar essa loss.</p></div></div>
+<p class="small">A propriedade de Markov permite usar apenas o estado anterior. Esta independência nos permite escrever a likehood como produtório.</p></section>
+
+<section class="slide"><div class="eyebrow">2 · Estados ocultos</div><h2>Da cadeia ao HMM</h2><p>Em um <em>hidden Markov model</em>, não observamos diretamente $S_t$. Observamos $Y_t$, cuja distribuição depende desse estado.</p><div class="two"><div class="box"><h3>Mecanismo</h3><p>$S_1\sim\pi$, depois $S_t\mid S_{t-1}\sim P_{S_{t-1},:}$.</p><p>Em seguida $Y_t\mid S_t=k\sim \phi_k$. No exemplo, $\phi_k=\mathcal N(c_k,\Sigma_k)$.</p></div><div class="box"><h3>Pergunta inversa</h3><p>Vendo apenas $y_{1:T}$, quais parâmetros e estados são plausíveis?</p><p>O modelo pressupõe emissões independentes condicionadas à trajetória de estados.</p></div></div><p class="small">A hipótese é sobre o modelo, não uma garantia de que os dados reais obedeçam a ela.</p></section>
+<section class="slide hmm-graph-slide"><div class="eyebrow">HMM · Estados e suas distribuições</div><h2>Cada estado tem sua gaussiana</h2>
+<p class="small">A cadeia percorre os estados ocultos. No estado $k$, a observação é amostrada da densidade $\phi_k$.</p>
+<svg class="hmm-emission-graph" viewBox="0 0 1120 540" role="img" aria-labelledby="hmm-graph-title hmm-graph-desc">
+<title id="hmm-graph-title">HMM com três estados e emissões gaussianas 1D</title><desc id="hmm-graph-desc">Setas sólidas indicam transições: 70% de A para A e 30% de A para B; 65% de B para B e 35% de B para C; 75% de C para C e 25% de C para A. Uma seta tracejada de cada estado aponta para sua própria densidade gaussiana: à esquerda, média -2 e desvio 0,65; ao centro, média zero e desvio 1,25; à direita, média 2 e desvio 0,9.</desc>
+<defs><marker id="hmm-transition-arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 Z" fill="#b5c5db"/></marker>
+<marker id="hmm-emission-arrow-0" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9" fill="none" stroke="#71e0c3" stroke-width="2"/></marker>
+<marker id="hmm-emission-arrow-1" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9" fill="none" stroke="#ffca79" stroke-width="2"/></marker>
+<marker id="hmm-emission-arrow-2" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9" fill="none" stroke="#fa8a8a" stroke-width="2"/></marker>
+</defs><g fill="none" stroke="#b5c5db" stroke-width="2.5" marker-end="url(#hmm-transition-arrow)">
+<path d="M251 132 Q390 60 525 132"/><path d="M591 132 Q730 60 865 132"/>
+<path d="M925 128 C1020 -10 110 -10 195 118"/>
+<path d="M189 132 C112 75 112 222 183 177"/>
+<path d="M529 132 C452 75 452 222 523 177"/>
+<path d="M869 132 C792 75 792 222 863 177"/>
+</g><g class="hmm-edge-label"><text x="390" y="85">30%</text><text x="730" y="85">35%</text><text x="560" y="27">25%</text><text x="130" y="220">70%</text><text x="470" y="220">65%</text><text x="810" y="220">75%</text></g>
+<circle cx="220" cy="155" r="36" fill="#1b2639" stroke="#71e0c3" stroke-width="3"/>
+<text x="220" y="163" text-anchor="middle" fill="#71e0c3" font-size="26" font-weight="700">A</text>
+<path d="M220 196 L220 315" fill="none" stroke="#71e0c3" stroke-width="3" stroke-dasharray="9 6" marker-end="url(#hmm-emission-arrow-0)"/>
+<text x="234" y="265" fill="#71e0c3" font-size="21">emissão</text>
+<rect x="73" y="328" width="294" height="196" rx="12" fill="#1b2639"/>
+<text x="90" y="354" fill="#71e0c3" font-size="22">φ₁(y)</text>
+<path d="M85.00 470.00 L86.50 470.00 L88.00 470.00 L89.50 470.00 L91.00 470.00 L92.50 470.00 L94.00 470.00 L95.50 470.00 L97.00 470.00 L98.50 470.00 L100.00 470.00 L101.50 470.00 L103.00 470.00 L104.50 470.00 L106.00 470.00 L107.50 470.00 L109.00 470.00 L110.50 469.99 L112.00 469.99 L113.50 469.99 L115.00 469.98 L116.50 469.97 L118.00 469.95 L119.50 469.93 L121.00 469.90 L122.50 469.85 L124.00 469.78 L125.50 469.69 L127.00 469.56 L128.50 469.39 L130.00 469.16 L131.50 468.86 L133.00 468.46 L134.50 467.94 L136.00 467.28 L137.50 466.45 L139.00 465.40 L140.50 464.11 L142.00 462.54 L143.50 460.65 L145.00 458.40 L146.50 455.75 L148.00 452.69 L149.50 449.19 L151.00 445.25 L152.50 440.87 L154.00 436.07 L155.50 430.89 L157.00 425.39 L158.50 419.66 L160.00 413.78 L161.50 407.87 L163.00 402.06 L164.50 396.48 L166.00 391.28 L167.50 386.59 L169.00 382.55 L170.50 379.27 L172.00 376.85 L173.50 375.37 L175.00 374.87 L176.50 375.37 L178.00 376.85 L179.50 379.27 L181.00 382.55 L182.50 386.59 L184.00 391.28 L185.50 396.48 L187.00 402.06 L188.50 407.87 L190.00 413.78 L191.50 419.66 L193.00 425.39 L194.50 430.89 L196.00 436.07 L197.50 440.87 L199.00 445.25 L200.50 449.19 L202.00 452.69 L203.50 455.75 L205.00 458.40 L206.50 460.65 L208.00 462.54 L209.50 464.11 L211.00 465.40 L212.50 466.45 L214.00 467.28 L215.50 467.94 L217.00 468.46 L218.50 468.86 L220.00 469.16 L221.50 469.39 L223.00 469.56 L224.50 469.69 L226.00 469.78 L227.50 469.85 L229.00 469.90 L230.50 469.93 L232.00 469.95 L233.50 469.97 L235.00 469.98 L236.50 469.99 L238.00 469.99 L239.50 469.99 L241.00 470.00 L242.50 470.00 L244.00 470.00 L245.50 470.00 L247.00 470.00 L248.50 470.00 L250.00 470.00 L251.50 470.00 L253.00 470.00 L254.50 470.00 L256.00 470.00 L257.50 470.00 L259.00 470.00 L260.50 470.00 L262.00 470.00 L263.50 470.00 L265.00 470.00 L266.50 470.00 L268.00 470.00 L269.50 470.00 L271.00 470.00 L272.50 470.00 L274.00 470.00 L275.50 470.00 L277.00 470.00 L278.50 470.00 L280.00 470.00 L281.50 470.00 L283.00 470.00 L284.50 470.00 L286.00 470.00 L287.50 470.00 L289.00 470.00 L290.50 470.00 L292.00 470.00 L293.50 470.00 L295.00 470.00 L296.50 470.00 L298.00 470.00 L299.50 470.00 L301.00 470.00 L302.50 470.00 L304.00 470.00 L305.50 470.00 L307.00 470.00 L308.50 470.00 L310.00 470.00 L311.50 470.00 L313.00 470.00 L314.50 470.00 L316.00 470.00 L317.50 470.00 L319.00 470.00 L320.50 470.00 L322.00 470.00 L323.50 470.00 L325.00 470.00 L326.50 470.00 L328.00 470.00 L329.50 470.00 L331.00 470.00 L332.50 470.00 L334.00 470.00 L335.50 470.00 L337.00 470.00 L338.50 470.00 L340.00 470.00 L341.50 470.00 L343.00 470.00 L344.50 470.00 L346.00 470.00 L347.50 470.00 L349.00 470.00 L350.50 470.00 L352.00 470.00 L353.50 470.00 L355.00 470.00 L355 470 L85 470 Z" fill="#71e0c3" fill-opacity=".15"/><path d="M85.00 470.00 L86.50 470.00 L88.00 470.00 L89.50 470.00 L91.00 470.00 L92.50 470.00 L94.00 470.00 L95.50 470.00 L97.00 470.00 L98.50 470.00 L100.00 470.00 L101.50 470.00 L103.00 470.00 L104.50 470.00 L106.00 470.00 L107.50 470.00 L109.00 470.00 L110.50 469.99 L112.00 469.99 L113.50 469.99 L115.00 469.98 L116.50 469.97 L118.00 469.95 L119.50 469.93 L121.00 469.90 L122.50 469.85 L124.00 469.78 L125.50 469.69 L127.00 469.56 L128.50 469.39 L130.00 469.16 L131.50 468.86 L133.00 468.46 L134.50 467.94 L136.00 467.28 L137.50 466.45 L139.00 465.40 L140.50 464.11 L142.00 462.54 L143.50 460.65 L145.00 458.40 L146.50 455.75 L148.00 452.69 L149.50 449.19 L151.00 445.25 L152.50 440.87 L154.00 436.07 L155.50 430.89 L157.00 425.39 L158.50 419.66 L160.00 413.78 L161.50 407.87 L163.00 402.06 L164.50 396.48 L166.00 391.28 L167.50 386.59 L169.00 382.55 L170.50 379.27 L172.00 376.85 L173.50 375.37 L175.00 374.87 L176.50 375.37 L178.00 376.85 L179.50 379.27 L181.00 382.55 L182.50 386.59 L184.00 391.28 L185.50 396.48 L187.00 402.06 L188.50 407.87 L190.00 413.78 L191.50 419.66 L193.00 425.39 L194.50 430.89 L196.00 436.07 L197.50 440.87 L199.00 445.25 L200.50 449.19 L202.00 452.69 L203.50 455.75 L205.00 458.40 L206.50 460.65 L208.00 462.54 L209.50 464.11 L211.00 465.40 L212.50 466.45 L214.00 467.28 L215.50 467.94 L217.00 468.46 L218.50 468.86 L220.00 469.16 L221.50 469.39 L223.00 469.56 L224.50 469.69 L226.00 469.78 L227.50 469.85 L229.00 469.90 L230.50 469.93 L232.00 469.95 L233.50 469.97 L235.00 469.98 L236.50 469.99 L238.00 469.99 L239.50 469.99 L241.00 470.00 L242.50 470.00 L244.00 470.00 L245.50 470.00 L247.00 470.00 L248.50 470.00 L250.00 470.00 L251.50 470.00 L253.00 470.00 L254.50 470.00 L256.00 470.00 L257.50 470.00 L259.00 470.00 L260.50 470.00 L262.00 470.00 L263.50 470.00 L265.00 470.00 L266.50 470.00 L268.00 470.00 L269.50 470.00 L271.00 470.00 L272.50 470.00 L274.00 470.00 L275.50 470.00 L277.00 470.00 L278.50 470.00 L280.00 470.00 L281.50 470.00 L283.00 470.00 L284.50 470.00 L286.00 470.00 L287.50 470.00 L289.00 470.00 L290.50 470.00 L292.00 470.00 L293.50 470.00 L295.00 470.00 L296.50 470.00 L298.00 470.00 L299.50 470.00 L301.00 470.00 L302.50 470.00 L304.00 470.00 L305.50 470.00 L307.00 470.00 L308.50 470.00 L310.00 470.00 L311.50 470.00 L313.00 470.00 L314.50 470.00 L316.00 470.00 L317.50 470.00 L319.00 470.00 L320.50 470.00 L322.00 470.00 L323.50 470.00 L325.00 470.00 L326.50 470.00 L328.00 470.00 L329.50 470.00 L331.00 470.00 L332.50 470.00 L334.00 470.00 L335.50 470.00 L337.00 470.00 L338.50 470.00 L340.00 470.00 L341.50 470.00 L343.00 470.00 L344.50 470.00 L346.00 470.00 L347.50 470.00 L349.00 470.00 L350.50 470.00 L352.00 470.00 L353.50 470.00 L355.00 470.00" fill="none" stroke="#71e0c3" stroke-width="3"/>
+<path d="M85 470 H355" stroke="#91a5bd"/>
+<path d="M220 470 v5" stroke="#91a5bd"/>
+<text x="220" y="491" fill="#b5c5db" text-anchor="middle" font-size="16">0</text>
+<text x="355" y="491" fill="#b5c5db" font-size="18">y</text>
+<text x="220" y="514" fill="#71e0c3" text-anchor="middle" font-size="18">μ = -2 · σ = 0.65</text>
+<circle cx="560" cy="155" r="36" fill="#1b2639" stroke="#ffca79" stroke-width="3"/>
+<text x="560" y="163" text-anchor="middle" fill="#ffca79" font-size="26" font-weight="700">B</text>
+<path d="M560 196 L560 315" fill="none" stroke="#ffca79" stroke-width="3" stroke-dasharray="9 6" marker-end="url(#hmm-emission-arrow-1)"/>
+<text x="574" y="265" fill="#ffca79" font-size="21">emissão</text>
+<rect x="413" y="328" width="294" height="196" rx="12" fill="#1b2639"/>
+<text x="430" y="354" fill="#ffca79" font-size="22">φ₂(y)</text>
+<path d="M425.00 470.00 L426.50 470.00 L428.00 470.00 L429.50 470.00 L431.00 470.00 L432.50 470.00 L434.00 470.00 L435.50 470.00 L437.00 470.00 L438.50 470.00 L440.00 469.99 L441.50 469.99 L443.00 469.99 L444.50 469.99 L446.00 469.99 L447.50 469.98 L449.00 469.98 L450.50 469.97 L452.00 469.97 L453.50 469.96 L455.00 469.95 L456.50 469.94 L458.00 469.93 L459.50 469.92 L461.00 469.90 L462.50 469.88 L464.00 469.85 L465.50 469.83 L467.00 469.79 L468.50 469.75 L470.00 469.70 L471.50 469.65 L473.00 469.59 L474.50 469.51 L476.00 469.43 L477.50 469.33 L479.00 469.22 L480.50 469.09 L482.00 468.94 L483.50 468.78 L485.00 468.59 L486.50 468.37 L488.00 468.13 L489.50 467.86 L491.00 467.56 L492.50 467.22 L494.00 466.85 L495.50 466.43 L497.00 465.97 L498.50 465.47 L500.00 464.92 L501.50 464.31 L503.00 463.66 L504.50 462.94 L506.00 462.17 L507.50 461.34 L509.00 460.44 L510.50 459.49 L512.00 458.47 L513.50 457.39 L515.00 456.25 L516.50 455.04 L518.00 453.78 L519.50 452.46 L521.00 451.09 L522.50 449.66 L524.00 448.19 L525.50 446.69 L527.00 445.15 L528.50 443.58 L530.00 441.99 L531.50 440.40 L533.00 438.80 L534.50 437.20 L536.00 435.63 L537.50 434.08 L539.00 432.57 L540.50 431.10 L542.00 429.69 L543.50 428.35 L545.00 427.09 L546.50 425.91 L548.00 424.84 L549.50 423.86 L551.00 423.00 L552.50 422.26 L554.00 421.64 L555.50 421.16 L557.00 420.81 L558.50 420.60 L560.00 420.53 L561.50 420.60 L563.00 420.81 L564.50 421.16 L566.00 421.64 L567.50 422.26 L569.00 423.00 L570.50 423.86 L572.00 424.84 L573.50 425.91 L575.00 427.09 L576.50 428.35 L578.00 429.69 L579.50 431.10 L581.00 432.57 L582.50 434.08 L584.00 435.63 L585.50 437.20 L587.00 438.80 L588.50 440.40 L590.00 441.99 L591.50 443.58 L593.00 445.15 L594.50 446.69 L596.00 448.19 L597.50 449.66 L599.00 451.09 L600.50 452.46 L602.00 453.78 L603.50 455.04 L605.00 456.25 L606.50 457.39 L608.00 458.47 L609.50 459.49 L611.00 460.44 L612.50 461.34 L614.00 462.17 L615.50 462.94 L617.00 463.66 L618.50 464.31 L620.00 464.92 L621.50 465.47 L623.00 465.97 L624.50 466.43 L626.00 466.85 L627.50 467.22 L629.00 467.56 L630.50 467.86 L632.00 468.13 L633.50 468.37 L635.00 468.59 L636.50 468.78 L638.00 468.94 L639.50 469.09 L641.00 469.22 L642.50 469.33 L644.00 469.43 L645.50 469.51 L647.00 469.59 L648.50 469.65 L650.00 469.70 L651.50 469.75 L653.00 469.79 L654.50 469.83 L656.00 469.85 L657.50 469.88 L659.00 469.90 L660.50 469.92 L662.00 469.93 L663.50 469.94 L665.00 469.95 L666.50 469.96 L668.00 469.97 L669.50 469.97 L671.00 469.98 L672.50 469.98 L674.00 469.99 L675.50 469.99 L677.00 469.99 L678.50 469.99 L680.00 469.99 L681.50 470.00 L683.00 470.00 L684.50 470.00 L686.00 470.00 L687.50 470.00 L689.00 470.00 L690.50 470.00 L692.00 470.00 L693.50 470.00 L695.00 470.00 L695 470 L425 470 Z" fill="#ffca79" fill-opacity=".15"/><path d="M425.00 470.00 L426.50 470.00 L428.00 470.00 L429.50 470.00 L431.00 470.00 L432.50 470.00 L434.00 470.00 L435.50 470.00 L437.00 470.00 L438.50 470.00 L440.00 469.99 L441.50 469.99 L443.00 469.99 L444.50 469.99 L446.00 469.99 L447.50 469.98 L449.00 469.98 L450.50 469.97 L452.00 469.97 L453.50 469.96 L455.00 469.95 L456.50 469.94 L458.00 469.93 L459.50 469.92 L461.00 469.90 L462.50 469.88 L464.00 469.85 L465.50 469.83 L467.00 469.79 L468.50 469.75 L470.00 469.70 L471.50 469.65 L473.00 469.59 L474.50 469.51 L476.00 469.43 L477.50 469.33 L479.00 469.22 L480.50 469.09 L482.00 468.94 L483.50 468.78 L485.00 468.59 L486.50 468.37 L488.00 468.13 L489.50 467.86 L491.00 467.56 L492.50 467.22 L494.00 466.85 L495.50 466.43 L497.00 465.97 L498.50 465.47 L500.00 464.92 L501.50 464.31 L503.00 463.66 L504.50 462.94 L506.00 462.17 L507.50 461.34 L509.00 460.44 L510.50 459.49 L512.00 458.47 L513.50 457.39 L515.00 456.25 L516.50 455.04 L518.00 453.78 L519.50 452.46 L521.00 451.09 L522.50 449.66 L524.00 448.19 L525.50 446.69 L527.00 445.15 L528.50 443.58 L530.00 441.99 L531.50 440.40 L533.00 438.80 L534.50 437.20 L536.00 435.63 L537.50 434.08 L539.00 432.57 L540.50 431.10 L542.00 429.69 L543.50 428.35 L545.00 427.09 L546.50 425.91 L548.00 424.84 L549.50 423.86 L551.00 423.00 L552.50 422.26 L554.00 421.64 L555.50 421.16 L557.00 420.81 L558.50 420.60 L560.00 420.53 L561.50 420.60 L563.00 420.81 L564.50 421.16 L566.00 421.64 L567.50 422.26 L569.00 423.00 L570.50 423.86 L572.00 424.84 L573.50 425.91 L575.00 427.09 L576.50 428.35 L578.00 429.69 L579.50 431.10 L581.00 432.57 L582.50 434.08 L584.00 435.63 L585.50 437.20 L587.00 438.80 L588.50 440.40 L590.00 441.99 L591.50 443.58 L593.00 445.15 L594.50 446.69 L596.00 448.19 L597.50 449.66 L599.00 451.09 L600.50 452.46 L602.00 453.78 L603.50 455.04 L605.00 456.25 L606.50 457.39 L608.00 458.47 L609.50 459.49 L611.00 460.44 L612.50 461.34 L614.00 462.17 L615.50 462.94 L617.00 463.66 L618.50 464.31 L620.00 464.92 L621.50 465.47 L623.00 465.97 L624.50 466.43 L626.00 466.85 L627.50 467.22 L629.00 467.56 L630.50 467.86 L632.00 468.13 L633.50 468.37 L635.00 468.59 L636.50 468.78 L638.00 468.94 L639.50 469.09 L641.00 469.22 L642.50 469.33 L644.00 469.43 L645.50 469.51 L647.00 469.59 L648.50 469.65 L650.00 469.70 L651.50 469.75 L653.00 469.79 L654.50 469.83 L656.00 469.85 L657.50 469.88 L659.00 469.90 L660.50 469.92 L662.00 469.93 L663.50 469.94 L665.00 469.95 L666.50 469.96 L668.00 469.97 L669.50 469.97 L671.00 469.98 L672.50 469.98 L674.00 469.99 L675.50 469.99 L677.00 469.99 L678.50 469.99 L680.00 469.99 L681.50 470.00 L683.00 470.00 L684.50 470.00 L686.00 470.00 L687.50 470.00 L689.00 470.00 L690.50 470.00 L692.00 470.00 L693.50 470.00 L695.00 470.00" fill="none" stroke="#ffca79" stroke-width="3"/>
+<path d="M425 470 H695" stroke="#91a5bd"/>
+<path d="M560 470 v5" stroke="#91a5bd"/>
+<text x="560" y="491" fill="#b5c5db" text-anchor="middle" font-size="16">0</text>
+<text x="695" y="491" fill="#b5c5db" font-size="18">y</text>
+<text x="560" y="514" fill="#ffca79" text-anchor="middle" font-size="18">μ = 0 · σ = 1.25</text>
+<circle cx="900" cy="155" r="36" fill="#1b2639" stroke="#fa8a8a" stroke-width="3"/>
+<text x="900" y="163" text-anchor="middle" fill="#fa8a8a" font-size="26" font-weight="700">C</text>
+<path d="M900 196 L900 315" fill="none" stroke="#fa8a8a" stroke-width="3" stroke-dasharray="9 6" marker-end="url(#hmm-emission-arrow-2)"/>
+<text x="914" y="265" fill="#fa8a8a" font-size="21">emissão</text>
+<rect x="753" y="328" width="294" height="196" rx="12" fill="#1b2639"/>
+<text x="770" y="354" fill="#fa8a8a" font-size="22">φ₃(y)</text>
+<path d="M765.00 470.00 L766.50 470.00 L768.00 470.00 L769.50 470.00 L771.00 470.00 L772.50 470.00 L774.00 470.00 L775.50 470.00 L777.00 470.00 L778.50 470.00 L780.00 470.00 L781.50 470.00 L783.00 470.00 L784.50 470.00 L786.00 470.00 L787.50 470.00 L789.00 470.00 L790.50 470.00 L792.00 470.00 L793.50 470.00 L795.00 470.00 L796.50 470.00 L798.00 470.00 L799.50 470.00 L801.00 470.00 L802.50 470.00 L804.00 470.00 L805.50 470.00 L807.00 470.00 L808.50 470.00 L810.00 470.00 L811.50 470.00 L813.00 470.00 L814.50 470.00 L816.00 470.00 L817.50 470.00 L819.00 470.00 L820.50 470.00 L822.00 470.00 L823.50 470.00 L825.00 470.00 L826.50 470.00 L828.00 470.00 L829.50 470.00 L831.00 470.00 L832.50 470.00 L834.00 470.00 L835.50 470.00 L837.00 470.00 L838.50 470.00 L840.00 470.00 L841.50 470.00 L843.00 470.00 L844.50 470.00 L846.00 470.00 L847.50 470.00 L849.00 470.00 L850.50 470.00 L852.00 470.00 L853.50 470.00 L855.00 470.00 L856.50 470.00 L858.00 469.99 L859.50 469.99 L861.00 469.99 L862.50 469.98 L864.00 469.98 L865.50 469.97 L867.00 469.96 L868.50 469.95 L870.00 469.93 L871.50 469.91 L873.00 469.88 L874.50 469.84 L876.00 469.79 L877.50 469.73 L879.00 469.66 L880.50 469.57 L882.00 469.46 L883.50 469.32 L885.00 469.15 L886.50 468.94 L888.00 468.69 L889.50 468.39 L891.00 468.04 L892.50 467.62 L894.00 467.12 L895.50 466.54 L897.00 465.86 L898.50 465.08 L900.00 464.18 L901.50 463.16 L903.00 462.00 L904.50 460.70 L906.00 459.25 L907.50 457.63 L909.00 455.85 L910.50 453.90 L912.00 451.79 L913.50 449.51 L915.00 447.07 L916.50 444.48 L918.00 441.75 L919.50 438.91 L921.00 435.96 L922.50 432.94 L924.00 429.87 L925.50 426.78 L927.00 423.72 L928.50 420.70 L930.00 417.78 L931.50 414.98 L933.00 412.36 L934.50 409.94 L936.00 407.75 L937.50 405.85 L939.00 404.24 L940.50 402.97 L942.00 402.04 L943.50 401.48 L945.00 401.29 L946.50 401.48 L948.00 402.04 L949.50 402.97 L951.00 404.24 L952.50 405.85 L954.00 407.75 L955.50 409.94 L957.00 412.36 L958.50 414.98 L960.00 417.78 L961.50 420.70 L963.00 423.72 L964.50 426.78 L966.00 429.87 L967.50 432.94 L969.00 435.96 L970.50 438.91 L972.00 441.75 L973.50 444.48 L975.00 447.07 L976.50 449.51 L978.00 451.79 L979.50 453.90 L981.00 455.85 L982.50 457.63 L984.00 459.25 L985.50 460.70 L987.00 462.00 L988.50 463.16 L990.00 464.18 L991.50 465.08 L993.00 465.86 L994.50 466.54 L996.00 467.12 L997.50 467.62 L999.00 468.04 L1000.50 468.39 L1002.00 468.69 L1003.50 468.94 L1005.00 469.15 L1006.50 469.32 L1008.00 469.46 L1009.50 469.57 L1011.00 469.66 L1012.50 469.73 L1014.00 469.79 L1015.50 469.84 L1017.00 469.88 L1018.50 469.91 L1020.00 469.93 L1021.50 469.95 L1023.00 469.96 L1024.50 469.97 L1026.00 469.98 L1027.50 469.98 L1029.00 469.99 L1030.50 469.99 L1032.00 469.99 L1033.50 470.00 L1035.00 470.00 L1035 470 L765 470 Z" fill="#fa8a8a" fill-opacity=".15"/><path d="M765.00 470.00 L766.50 470.00 L768.00 470.00 L769.50 470.00 L771.00 470.00 L772.50 470.00 L774.00 470.00 L775.50 470.00 L777.00 470.00 L778.50 470.00 L780.00 470.00 L781.50 470.00 L783.00 470.00 L784.50 470.00 L786.00 470.00 L787.50 470.00 L789.00 470.00 L790.50 470.00 L792.00 470.00 L793.50 470.00 L795.00 470.00 L796.50 470.00 L798.00 470.00 L799.50 470.00 L801.00 470.00 L802.50 470.00 L804.00 470.00 L805.50 470.00 L807.00 470.00 L808.50 470.00 L810.00 470.00 L811.50 470.00 L813.00 470.00 L814.50 470.00 L816.00 470.00 L817.50 470.00 L819.00 470.00 L820.50 470.00 L822.00 470.00 L823.50 470.00 L825.00 470.00 L826.50 470.00 L828.00 470.00 L829.50 470.00 L831.00 470.00 L832.50 470.00 L834.00 470.00 L835.50 470.00 L837.00 470.00 L838.50 470.00 L840.00 470.00 L841.50 470.00 L843.00 470.00 L844.50 470.00 L846.00 470.00 L847.50 470.00 L849.00 470.00 L850.50 470.00 L852.00 470.00 L853.50 470.00 L855.00 470.00 L856.50 470.00 L858.00 469.99 L859.50 469.99 L861.00 469.99 L862.50 469.98 L864.00 469.98 L865.50 469.97 L867.00 469.96 L868.50 469.95 L870.00 469.93 L871.50 469.91 L873.00 469.88 L874.50 469.84 L876.00 469.79 L877.50 469.73 L879.00 469.66 L880.50 469.57 L882.00 469.46 L883.50 469.32 L885.00 469.15 L886.50 468.94 L888.00 468.69 L889.50 468.39 L891.00 468.04 L892.50 467.62 L894.00 467.12 L895.50 466.54 L897.00 465.86 L898.50 465.08 L900.00 464.18 L901.50 463.16 L903.00 462.00 L904.50 460.70 L906.00 459.25 L907.50 457.63 L909.00 455.85 L910.50 453.90 L912.00 451.79 L913.50 449.51 L915.00 447.07 L916.50 444.48 L918.00 441.75 L919.50 438.91 L921.00 435.96 L922.50 432.94 L924.00 429.87 L925.50 426.78 L927.00 423.72 L928.50 420.70 L930.00 417.78 L931.50 414.98 L933.00 412.36 L934.50 409.94 L936.00 407.75 L937.50 405.85 L939.00 404.24 L940.50 402.97 L942.00 402.04 L943.50 401.48 L945.00 401.29 L946.50 401.48 L948.00 402.04 L949.50 402.97 L951.00 404.24 L952.50 405.85 L954.00 407.75 L955.50 409.94 L957.00 412.36 L958.50 414.98 L960.00 417.78 L961.50 420.70 L963.00 423.72 L964.50 426.78 L966.00 429.87 L967.50 432.94 L969.00 435.96 L970.50 438.91 L972.00 441.75 L973.50 444.48 L975.00 447.07 L976.50 449.51 L978.00 451.79 L979.50 453.90 L981.00 455.85 L982.50 457.63 L984.00 459.25 L985.50 460.70 L987.00 462.00 L988.50 463.16 L990.00 464.18 L991.50 465.08 L993.00 465.86 L994.50 466.54 L996.00 467.12 L997.50 467.62 L999.00 468.04 L1000.50 468.39 L1002.00 468.69 L1003.50 468.94 L1005.00 469.15 L1006.50 469.32 L1008.00 469.46 L1009.50 469.57 L1011.00 469.66 L1012.50 469.73 L1014.00 469.79 L1015.50 469.84 L1017.00 469.88 L1018.50 469.91 L1020.00 469.93 L1021.50 469.95 L1023.00 469.96 L1024.50 469.97 L1026.00 469.98 L1027.50 469.98 L1029.00 469.99 L1030.50 469.99 L1032.00 469.99 L1033.50 470.00 L1035.00 470.00" fill="none" stroke="#fa8a8a" stroke-width="3"/>
+<path d="M765 470 H1035" stroke="#91a5bd"/>
+<path d="M900 470 v5" stroke="#91a5bd"/>
+<text x="900" y="491" fill="#b5c5db" text-anchor="middle" font-size="16">0</text>
+<text x="1035" y="491" fill="#b5c5db" font-size="18">y</text>
+<text x="900" y="514" fill="#fa8a8a" text-anchor="middle" font-size="18">μ = 2 · σ = 0.9</text>
+</svg><div class="hmm-graph-key small"><span>Seta sólida → transição entre estados</span><span>Seta tracejada → amostragem de uma observação</span></div></section>
+<section class="slide"><div class="eyebrow">4 · Experimente</div><h2>Um HMM gaussiano em 2D</h2><div class="sim"><div class="controls"><label>Número de estados N <input id="n" type="number" min="1" max="10" value="4"></label><div>Variâncias dos centros<label class="state-row"><span>$\sigma_x^2$</span><input id="center-x" type="number" min="0.01" max="100" step="0.1" value="1"><span>$\sigma_y^2$</span><input id="center-y" type="number" min="0.01" max="100" step="0.1" value="1"></label></div><label>Favorecimento da diagonal: <b id="bias-value">3</b><input id="bias" type="range" min="0" max="15" step="0.5" value="3"></label><label>Velocidade: <b id="speed-value">4</b> passos/s<input id="speed" type="range" min="1" max="20" step="1" value="4"></label><button id="generate">Sortear modelo</button><div id="variances"></div><hr><button id="step">Um passo</button><button id="play">▶ Iniciar</button><button id="reset">Limpar trajetória</button><p class="small">Altere N, as variâncias dos centros ou a diagonal e sorteie novamente. As variâncias de emissão por estado valem imediatamente.</p></div><div class="plots"><svg id="cloud" role="img" aria-label="Observações e centros de gaussianas em duas dimensões"></svg><details id="hmm-details"><summary>Controles e detalhes da simulação</summary><div class="plot-tools"><button id="reset-view" type="button">Recentrar vista</button><span class="small">Roda do mouse: zoom · Clique e arraste: deslocar</span></div><div id="legend" class="legend"></div><p id="status">Sorteie um modelo para começar.</p><div class="matrix" id="matrix"></div><p class="small">Elipses tracejadas mostram as emissões circulares; os centros são amostrados com variâncias distintas em x e y.</p></details></div></div>
+<p class="small">Centros $c_k\sim\mathcal N(0,\operatorname{diag}(\sigma_x^2,\sigma_y^2))$; emissões circulares $Y_t\mid S_t=k\sim\mathcal N(c_k,v_k I_2)$. Os controles $\sigma_x^2$ e $\sigma_y^2$ mudam a dispersão dos centros; cada estado tem uma única variância de emissão.</p></section>
+<section class="slide"><div class="eyebrow">4 · O objetivo de ajuste</div><h2>Qual é a loss do HMM?</h2><p>Para uma trajetória hipotética $s_{1:T}$, a densidade conjunta é um produto de probabilidades de estado e densidades de emissão:</p><div class="box math">$$p_\theta(y_{1:T},s_{1:T})=\pi_{s_1}\phi_{s_1}(y_1)\prod_{t=2}^T P_{s_{t-1}s_t}\phi_{s_t}(y_t).$$</div><p>Mas só observamos $y_{1:T}$. Somamos sobre <strong>todas</strong> as trajetórias possíveis e minimizamos o negativo do logaritmo:</p><div class="math">$$\mathcal L(\theta)=-\log p_\theta(y_{1:T})=-\log\sum_{s_{1:T}}p_\theta(y_{1:T},s_{1:T}).$$</div><p class="small">Para dados contínuos, $p_\theta(y)$ é uma densidade, não a probabilidade do ponto. $N$ e a família das emissões são escolhas do modelo.</p></section>
+<section class="slide"><div class="eyebrow">5 · Como calcular</div><h2>O algoritmo forward soma caminhos</h2><p>Definimos $\alpha_t(j)$ como a probabilidade conjunta de o estado atual ser $j$ e termos observado o prefixo até $t$:</p><div class="box math">$$\alpha_t(j)=p_\theta(Y_{1:t}=y_{1:t},\ S_t=j).$$</div><p>Como $Y$ é contínuo, $p_\theta$ aqui denota uma densidade conjunta em $y_{1:t}$ e uma probabilidade no estado discreto $S_t$. A soma sobre todos os estados finais recupera a densidade do prefixo observado.</p><div class="math">$$\alpha_1(j)=\pi_j \phi_j(y_1),\quad \alpha_t(j)=\phi_j(y_t)\sum_i\alpha_{t-1}(i)P_{ij},\quad p_\theta(y_{1:T})=\sum_j\alpha_T(j).$$</div><p>A recorrência custa $O(TN^2)$. Em implementações, usamos reescala ou <em>log-sum-exp</em> para evitar underflow.</p></section>
+<section class="slide"><div class="eyebrow">6 · Aprender com estados ocultos</div><h2>EM em duas ideias</h2><p>Se os estados fossem conhecidos, ajustar transições e emissões seria mais direto. Como não são, alternamos:</p><div class="two"><div class="box"><h3>E · Expectation</h3><p>Com os parâmetros atuais, calculamos as probabilidades posteriores dos estados e pares de transições, usando toda a sequência observada.</p><p>$\gamma_t(k)=\Pr(S_t=k\mid Y_{1:T}=y_{1:T})$.</p></div><div class="box"><h3>M · Maximization</h3><p>Maximizamos $Q(\theta\mid\theta^{\mathrm{ant}})$, a expectativa da log-verossimilhança completa sobre as trajetórias de estados. As probabilidades do passo E ficam fixas.</p><p>Ex.: $\pi_k\leftarrow\gamma_1(k)$.</p></div></div><p class="small">EM exato não reduz a verossimilhança observada, mas pode chegar a um ótimo local. Reinicializações podem ajudar; covariâncias degeneradas exigem cuidados.</p></section>
+
+<section class="slide"><div class="eyebrow">EM · A expectativa que entra no ajuste</div><h2>Uma média sobre trajetórias de estados</h2>
+<p>Para os parâmetros atuais $\theta^{\mathrm{ant}}$, o passo E obtém a distribuição posterior das trajetórias, usando toda a sequência observada:</p>
+<div class="math">$$q(s_{1:T})=p_{\theta^{\mathrm{ant}}}(s_{1:T}\mid y_{1:T}).$$</div>
+<p>O passo M procura aumentar a expectativa da <strong>log-verossimilhança completa</strong>, mantendo $q$ fixa:</p>
+<div class="box math">$$\begin{aligned}
+Q(\theta\mid\theta^{\mathrm{ant}})
+&=\mathbb E_{S_{1:T}\sim q}\!\left[\log p_\theta(y_{1:T},S_{1:T})\right]\\
+&=\sum_{s_{1:T}}q(s_{1:T})\,\log p_\theta(y_{1:T},s_{1:T}).
+\end{aligned}$$</div>
+<p class="small">No passo E, usamos $\theta^{\mathrm{ant}}$ para determinar $q$. No passo M, variamos $\theta$ dentro do logaritmo, mantendo os pesos $q(s_{1:T})$ fixos.</p></section>
+<section class="slide"><div class="eyebrow">EM · Por que melhorar Q ajuda?</div><h2>Da expectativa à verossimilhança observada</h2>
+<p>Nos dados observados, somamos sobre as trajetórias possíveis e depois tomamos o logaritmo:</p>
+<div class="math">$$\ell(\theta)=\log\sum_{s_{1:T}}p_\theta(y_{1:T},s_{1:T}).$$</div>
+<p>Com o posterior exato dos parâmetros atuais no passo E, temos:</p>
+<div class="box math">$$\begin{aligned}
+\ell(\theta^{\mathrm{novo}})-\ell(\theta^{\mathrm{ant}})
+\ \ge\ &Q(\theta^{\mathrm{novo}}\mid\theta^{\mathrm{ant}})
+-Q(\theta^{\mathrm{ant}}\mid\theta^{\mathrm{ant}}).
+\end{aligned}$$</div>
+<p>Assim, aumentar $Q$ no passo M garante que $\ell$ não diminua. Equivalentemente, a loss $-\ell$ não aumenta.</p>
+<p class="small">A desigualdade vem do limite inferior de Jensen: para $q$ fixo, $\ell(\theta)\ge Q(\theta\mid\theta^{\mathrm{ant}})+H(q)$, com igualdade em $\theta^{\mathrm{ant}}$. Aqui $H(q)=-\sum_s q(s)\log q(s)$ é a entropia do posterior e fica constante no passo M.</p></section>
+<section class="slide compact-math-slide em-counts-slide"><div class="eyebrow">EM · Como calcular essa média no HMM</div><h2>A expectativa vira contagens suaves</h2>
+<p>O logaritmo da densidade conjunta separa estado inicial, emissões e transições. A média de cada termo usa as probabilidades posteriores:</p>
+<div class="em-counts-grid">
+<div class="box"><h3>Pesos calculados no passo E</h3>
+<div class="math">$$\gamma_t(k)=\Pr_{\theta^{\mathrm{ant}}}(S_t=k\mid y_{1:T}).$$</div>
+<div class="math">$$\begin{aligned}\xi_t(i,j)&=\Pr_{\theta^{\mathrm{ant}}}\bigl(S_{t-1}=i,\\[-2pt]&\qquad S_t=j\mid y_{1:T}\bigr),\quad t\ge2.\end{aligned}$$</div>
+<p class="small">O <em>forward–backward</em> calcula $\gamma$ e $\xi$. Esses pesos ficam fixos no passo M.</p>
+</div>
+<div class="box"><h3>Objetivo maximizado no passo M</h3>
+<div class="math">$$\begin{aligned}
+Q(\theta\mid\theta^{\mathrm{ant}})
+={}&\sum_k\gamma_1(k)\log\pi_k
++\sum_{t=1}^{T}\sum_k\gamma_t(k)\log\phi_k(y_t)\\
+&+\sum_{t=2}^{T}\sum_{i,j}\xi_t(i,j)\log P_{ij}.
+\end{aligned}$$</div>
+<p class="small">Ajustamos a distribuição inicial $\pi$, as emissões $\phi_k$ e as transições $P$.</p></div></div>
+<div class="em-update"><div class="math">$$P_{ij}^{\mathrm{novo}}=
+\frac{\sum_{t=2}^{T}\xi_t(i,j)}{\sum_{t=2}^{T}\gamma_{t-1}(i)}.$$</div>
+<p class="small">Numerador: número esperado de transições $i\to j$. Denominador: número esperado de oportunidades de sair de $i$, incluindo autotransições. A fórmula vale quando o denominador é positivo.</p></div>
+</section>
+
+<section class="slide"><div class="eyebrow">7 · Sem ordem temporal</div><h2>GMM: uma mistura de gaussianas</h2><p>Para observações independentes, cada ponto recebe um rótulo latente $Z_i$; não há matriz de transição.</p><div class="box math">$$p_\theta(y_i)=\sum_{k=1}^N w_k\,\mathcal N(y_i;\mu_k,\Sigma_k),\qquad \mathcal L=-\sum_i\log p_\theta(y_i).$$</div><p>Os pesos $w_k$ somam 1. O posterior $\Pr(Z_i=k\mid y_i)$ é uma associação <em>suave</em>: um ponto pode pertencer parcialmente a vários grupos.</p><p>EM também se aplica: calcula responsabilidades no passo E e atualiza pesos, médias e covariâncias no passo M.</p></section>
+<section class="slide"><div class="eyebrow">Laboratório · GMM</div><h2>Da amostra ao ajuste de uma mistura</h2><p class="small">Primeiro escolha um modelo e amostre. No ajuste, o EM alterna: <strong>E</strong> calcula responsabilidades; <strong>M</strong> atualiza pesos, médias e variâncias. Aqui usamos covariâncias diagonais e variância mínima $0{,}03$ por eixo.</p><div class="cluster-widget" data-cluster="gmm"><div class="cluster-controls">
+<label>Modelo gerador<select class="source-model"><option value="separated">3 grupos separados</option><option value="overlap">3 grupos sobrepostos</option><option value="elongated">3 grupos alongados</option><option value="unbalanced">3 grupos com pesos desiguais</option></select></label>
+<label>Número de pontos <input class="sample-size" type="number" min="30" max="600" step="30" value="240"></label>
+<button class="sample-data">Amostrar do modelo</button>
+<p class="small">A amostra é compartilhada com o outro widget. O ajuste recebe apenas os pontos.</p>
+<label>Grupos no ajuste K <input class="fit-k" type="number" min="1" max="6" value="3"></label>
+<button class="restart-fit">Reiniciar ajuste</button><button class="fit-step">Um passo</button><button class="fit-play">▶ Animar</button>
+<label><input class="reveal-source" type="checkbox"> Revelar rótulos geradores</label>
+<div class="cluster-params"></div></div><div><svg class="cluster-plot" role="img" aria-label="Amostra 2D e ajuste de gmm"></svg><p class="cluster-status" aria-live="polite"></p><div class="cluster-legend"></div><p class="small source-summary"></p></div></div></section>
+<section class="slide"><div class="eyebrow">8 · Geometria</div><h2>K-means: proximidade aos centros</h2><div class="box math">$$\min_{z_1,\ldots,z_m,\mu_1,\ldots,\mu_N}\sum_{i=1}^m\lVert y_i-\mu_{z_i}\rVert^2.$$</div><p>Alternamos: atribuir cada ponto ao centro mais próximo; atualizar cada centro como a média dos pontos atribuídos. A atribuição é <strong>rígida</strong>.</p><div class="two"><p><strong>GMM:</strong> modelo probabilístico, grupos com covariâncias e incerteza.</p><p><strong>K-means:</strong> objetivo geométrico, distância euclidiana, sem probabilidades posteriores.</p></div><p class="small">Ambos dependem da escala das variáveis e da inicialização; K-means pode ter grupos vazios.</p></section>
+<section class="slide"><div class="eyebrow">Laboratório · K-means</div><h2>Classificar, recalcular, repetir</h2><p class="small"><strong>1 · Atribuição:</strong> associe cada ponto ao centro mais próximo. <strong>2 · Atualização:</strong> mova cada centro para a média de seu grupo. Repita até as atribuições estabilizarem. As regiões do fundo mostram a classificação pelo centro mais próximo.</p><div class="cluster-widget" data-cluster="kmeans"><div class="cluster-controls">
+<label>Modelo gerador<select class="source-model"><option value="separated">3 grupos separados</option><option value="overlap">3 grupos sobrepostos</option><option value="elongated">3 grupos alongados</option><option value="unbalanced">3 grupos com pesos desiguais</option></select></label>
+<label>Número de pontos <input class="sample-size" type="number" min="30" max="600" step="30" value="240"></label>
+<button class="sample-data">Amostrar do modelo</button>
+<p class="small">A amostra é compartilhada com o outro widget. O ajuste recebe apenas os pontos.</p>
+<label>Grupos no ajuste K <input class="fit-k" type="number" min="1" max="6" value="3"></label>
+<button class="restart-fit">Reiniciar ajuste</button><button class="fit-step">Um passo</button><button class="fit-play">▶ Animar</button>
+<label><input class="reveal-source" type="checkbox"> Revelar rótulos geradores</label>
+<div class="cluster-params"></div></div><div><svg class="cluster-plot" role="img" aria-label="Amostra 2D e ajuste de kmeans"></svg><p class="cluster-status" aria-live="polite"></p><div class="cluster-legend"></div><p class="small source-summary"></p></div></div></section>
+<section class="slide"><div class="eyebrow">9 · Dinâmica por regime</div><h2>MS-VAR: cada estado tem sua regressão</h2><p>Agora a média da observação depende também do passado observado. Para $t=p,\ldots,T-1$:</p><div class="box math">$$Y_t=c_{S_t}+\sum_{\ell=1}^{p}A_{\ell,S_t}Y_{t-\ell}+B_{S_t}x_t+\varepsilon_t,\qquad \varepsilon_t\mid S_t=k\sim\mathcal N(0,\Sigma_k).$$</div><p>$Y_t\in\mathbb R^d$; $x_t$ representa covariáveis dadas. $p$ é o número de defasagens, e cada estado tem seus próprios coeficientes e covariância.</p><p>Assim, um regime pode representar uma <em>dinâmica</em> diferente, não apenas uma nuvem em torno de outra média.</p></section>
+<section class="slide"><div class="eyebrow">10 · A mesma arquitetura de loss</div><h2>Verossimilhança do MS-VAR</h2><p>Condicionamos no prefixo observado $y_{0:p-1}$ e nas covariáveis $x$. Para cada regime, a densidade local é</p><div class="math">$$\psi_{t,k}=\mathcal N\!\left(y_t;c_k+\sum_{\ell=1}^{p}A_{\ell,k}y_{t-\ell}+B_kx_t,\Sigma_k\right).$$</div><div class="box math">$$\mathcal L(\theta)=-\log\sum_{s_{p:T-1}}\left[\pi_{s_p}\psi_{p,s_p}\prod_{t=p+1}^{T-1}P_{s_{t-1}s_t}\psi_{t,s_t}\right].$$</div><p>O forward é o mesmo, trocando $\phi_k(y_t)$ por $\psi_{t,k}$. O prefixo fornece as defasagens: não entra como observação adicional na loss condicional. Aqui $\pi$ é a distribuição do primeiro estado modelado, $S_p$.</p></section>
+<section class="slide"><div class="eyebrow">11 · Fechamento</div><h2>Uma família de perguntas</h2><div class="box"><p><strong>K-means:</strong> quais pontos estão próximos?</p><p><strong>GMM:</strong> quais distribuições explicam as nuvens?</p><p><strong>HMM:</strong> como os grupos evoluem no tempo?</p><p><strong>MS-VAR:</strong> como a própria dinâmica muda entre regimes?</p></div><p>Para discutir: se dois regimes têm emissões semelhantes, como a persistência pode ajudar a distingui-los? Quando ela pode nos induzir ao erro?</p><p class="small">Base conceitual: notas pessoais <code>em_and_direct.tex</code>, seções sobre HMM, MS-VAR, verossimilhança marginal e EM. Nesta aula usamos índices de HMM de 1 a T e MS-VAR de 0 a T−1.</p></section>
+
+<section class="slide neural-extra"><div class="eyebrow">Extra 1 · Elaborando HMMs e MS-VARs</div><h2>Onde uma rede neural entra?</h2>
+<p>Os estados continuam sendo regimes discretos. As redes podem dar mais flexibilidade a duas partes do modelo:</p>
+<div class="two"><div class="box"><h3>Escolha do próximo estado</h3><p>Num HMM homogêneo, a linha $P_{i,:}$ depende apenas do estado atual $i$.</p><div class="math">$$\text{histórico observado}\ \longrightarrow\ \text{rede}\ \longrightarrow\ P_t(i,:).$$</div><p>A chance de trocar de regime passa a depender do que acabou de acontecer.</p></div>
+<div class="box"><h3>Dinâmica dentro do estado</h3><p>No MS-VAR, cada regime tem uma regressão linear sobre o passado.</p><div class="math">$$\text{passado}\ \longrightarrow\ \text{rede }k\ \longrightarrow\ m_{t,k}.$$</div><p>A média condicional $m_{t,k}$ pode descrever uma dinâmica não linear.</p></div></div>
+<p class="small">Podemos elaborar cada parte separadamente. Nas fórmulas a seguir, $K$ é o número de estados, $p$ é o número de defasagens e $Y_t\in\mathbb R^d$.</p>
+<p class="small">Referência para transições condicionadas por entradas: <a href="https://papers.nips.cc/paper/1994/hash/8065d07da4a77621450aa84fee5656d9-Abstract.html" target="_blank" rel="noopener">Bengio e Frasconi, An Input Output HMM Architecture (1994)</a>.</p>
+</section>
+<section class="slide neural-extra"><div class="eyebrow">Extra 2 · Transições que dependem dos dados</div><h2>Uma rede produz cada linha de Pₜ</h2>
+<p>Antes de gerar $Y_t$, montamos o contexto $h_t=(Y_{t-1},\ldots,Y_{t-p},x_t)$, com covariáveis $x_t$ disponíveis nesse instante. Para cada estado anterior $i$, uma rede produz $K$ números reais $a_{t,i,1:K}$.</p>
+<div class="box math">$$\begin{aligned}
+a_{t,i,1:K}&=F_\eta(h_t,i),\\
+P_t(i,j)&=\Pr(S_t=j\mid S_{t-1}=i,h_t)
+=\frac{\exp(a_{t,i,j})}{\sum_{\ell=1}^{K}\exp(a_{t,i,\ell})}.
+\end{aligned}$$</div>
+<p>O <em>softmax</em> transforma esses números em probabilidades positivas que somam $1$ em cada linha. O estado $i$ pode entrar por uma codificação <em>one-hot</em>, um vetor com $1$ na posição $i$ e $0$ nas demais.</p>
+<div class="box"><strong>Exemplo de mecanismo:</strong> para dois regimes, $P_t(1,2)=1/(1+\exp[-(b+w^\top h_t)])$. Se a variação recente de $Y$ aumenta $w^\top h_t$, aumenta também a chance de sair do regime 1 e ir para o 2.</div>
+<p class="small">Os pesos $\eta$, incluindo $b,w$ no exemplo, são aprendidos. Se a rede ignorar $h_t$, recuperamos uma matriz de transição constante.</p></section>
+<section class="slide neural-extra"><div class="eyebrow">Extra 3 · Componentes autorregressivos neurais</div><h2>Da regressão linear à dinâmica não linear</h2>
+<div class="two"><div class="box"><h3>MS-VAR</h3><div class="math">$$m_{t,k}=c_k+\sum_{\ell=1}^{p}A_{\ell,k}Y_{t-\ell}+B_kx_t.$$</div><p>Cada regime transforma linearmente o passado observado.</p></div>
+<div class="box"><h3>Elaboração neural</h3><div class="math">$$m_{t,k}=f_{\omega,k}(h_t).$$</div><p>Uma rede por regime, ou uma rede compartilhada que também recebe $k$, prevê a média de $Y_t$.</p></div></div>
+<div class="math">$$Y_t=m_{t,S_t}+\varepsilon_t,\qquad
+\varepsilon_t\mid S_t=k,h_t\sim\mathcal N(0,\Sigma_k),\quad \Sigma_k\succ0.$$</div>
+<p>Uma opção gradual é manter o MS-VAR e acrescentar uma correção neural $r_{\omega,k}$:</p>
+<div class="math">$$m_{t,k}=c_k+\sum_{\ell=1}^{p}A_{\ell,k}Y_{t-\ell}+B_kx_t+r_{\omega,k}(h_t).$$</div>
+<p class="small">Com $r_{\omega,k}=0$, recuperamos o MS-VAR. Com médias constantes e covariâncias por estado, recuperamos as emissões gaussianas do HMM. A letra $f$ aqui denota uma rede; a densidade de emissão continua sendo $\psi_{t,k}$.</p>
+<p class="small">Referência: <a href="https://globals.ieice.org/en_transactions/information/10.1587/e78-d_6_676/_p" target="_blank" rel="noopener">Tsuboka e Takada, Neural Predictive Hidden Markov Model (1995)</a>.</p>
+</section>
+<section class="slide neural-extra"><div class="eyebrow">Extra 4 · Memória observada e inferência</div><h2>O histórico pode ter uma representação neural</h2>
+<p>Em vez de uma janela fixa, podemos resumir as observações anteriores por uma rede recorrente, por exemplo uma GRU:</p>
+<div class="box math">$$h_t=R_\rho(h_{t-1},Y_{t-1},x_t),\qquad
+P_t(i,:)=\operatorname{softmax}F_\eta(h_t,i),\qquad m_{t,k}=f_{\omega,k}(h_t).$$</div>
+<div class="two"><div class="box"><h3>Ao avaliar uma sequência</h3><p>O prefixo $y_{0:p-1}$ e uma inicialização determinam $h_p$. Depois, cada $h_t$ é calculado com dados já observados.</p><p>Assim, $h_t$ é o mesmo para todas as trajetórias de estados consideradas pelo forward.</p></div>
+<div class="box"><h3>Por que essa escolha importa?</h3><p>Se a memória também recebesse todos os estados ocultos anteriores, ela poderia ser diferente em cada trajetória.</p><p>Nesse caso, um único valor forward por estado já não seria suficiente em geral.</p></div></div>
+<p class="small">A causalidade também importa para previsão: $P_t$ e $m_{t,k}$ usam o passado de $Y_t$, sem acessar $Y_t$ nem observações futuras. A cadeia passa a ter transições condicionadas pelo contexto observado.</p>
+</section>
+<section class="slide neural-extra"><div class="eyebrow">Extra 5 · A mesma construção da likelihood</div><h2>A rede muda os fatores; o forward ainda soma</h2>
+<p>Para a sequência observada, $h_t$ é conhecido. A densidade local e a soma das trajetórias tornam-se:</p>
+<div class="math">$$\psi_{t,k}=\mathcal N(y_t;m_{t,k}(h_t),\Sigma_k),\qquad
+\mathcal L(\theta)=-\log\sum_{s_{p:T-1}}\pi_{s_p}\psi_{p,s_p}
+\prod_{t=p+1}^{T-1}P_t(s_{t-1},s_t)\psi_{t,s_t}.$$</div>
+<div class="box math">$$\begin{aligned}
+\alpha_p(j)&=\pi_j\psi_{p,j},\\
+\alpha_t(j)&=\psi_{t,j}\sum_i\alpha_{t-1}(i)P_t(i,j),\\
+\mathcal L(\theta)&=-\log\sum_j\alpha_{T-1}(j).
+\end{aligned}$$</div>
+<p>O forward continua exato porque cada fator depende apenas do estado atual, do anterior e de um contexto comum a todas as trajetórias. A soma de transições custa $O((T-p)K^2)$, além de avaliar as redes.</p>
+<p class="small">Condicionamos no prefixo $y_{0:p-1}$ e nas covariáveis; $\pi$ é a distribuição inicial de $S_p$. Aqui $\theta$ reúne parâmetros das redes, covariâncias e distribuição inicial. Usamos log-sum-exp ou reescala na implementação.</p>
+</section>
+<section class="slide neural-extra"><div class="eyebrow">Extra 6 · Como aprender as redes</div><h2>Derivar a loss ou continuar usando EM?</h2>
+<div class="two"><div class="box"><h3>Diferenciar o forward</h3><p>As redes, o softmax, as densidades gaussianas e o forward formam uma computação diferenciável.</p><div class="math">$$\theta\leftarrow\theta-\lambda\,\nabla_\theta\mathcal L(\theta).$$</div><p>O gradiente atravessa a soma dos caminhos; não é necessário sortear estados discretos para calcular essa loss.</p></div>
+<div class="box"><h3>EM com passo M numérico</h3><p>O forward–backward calcula $\gamma_t(k)$ e $\xi_t(i,j)$ com os parâmetros atuais.</p><p>Com esses pesos fixos, usamos gradientes para aumentar $Q$, ajustando as redes de transição e de emissão.</p><p class="small">Isso é EM generalizado se o passo M de fato aumentar $Q$. Um passo arbitrário de gradiente não garante monotonicidade.</p></div></div>
+<div class="math">$$Q(\theta\mid\theta^{\mathrm{ant}})
+=\sum_k\gamma_p(k)\log\pi_k
++\sum_{t=p}^{T-1}\sum_k\gamma_t(k)\log\psi_{t,k}
++\sum_{t=p+1}^{T-1}\sum_{i,j}\xi_t(i,j)\log P_t(i,j).$$</div>
+<p class="small">Em $Q$, usamos $\psi_{t,k}(\theta)$ e $P_t(i,j;\theta)$ recalculados com os parâmetros candidatos, mas mantemos $\gamma$ e $\xi$ fixos no passo M.</p></section>
+<section class="slide neural-extra"><div class="eyebrow">Extra 7 · O que os regimes passam a representar?</div><h2>Regimes de uma dinâmica aprendida</h2>
+<div class="two"><div class="box"><h3>Um exemplo escalar com dois regimes</h3>
+<div class="math">$$m_{t,k}=a_kY_{t-1}+b_k\tanh(Y_{t-1}),$$
+$$P_t(1,2)=\frac{1}{1+\exp[-(c+d|Y_{t-1}|)]}.$$</div>
+<p>A média de cada regime pode saturar ou mudar de inclinação. Para $d>0$, valores altos de $|Y_{t-1}|$ aumentam a chance de sair do regime 1.</p></div>
+<div class="box"><h3>Gerar uma previsão</h3><p>A partir do passado: calcule $h_t$ e $P_t$, amostre o próximo estado e então amostre $Y_t$ de sua gaussiana.</p><p>Para prever vários passos, incorpore as observações simuladas ao histórico e repita.</p><p class="small">O mesmo procedimento combina memória observada, persistência latente e dinâmica não linear.</p></div></div>
+<p class="small">Com $P_t$ variável, a permanência em um regime já não é, em geral, geométrica: não podemos resumir sua duração por $1/(1-P_{ii})$ constante. Uma rede flexível também não garante estabilidade das trajetórias; esse comportamento precisa ser examinado.</p>
+</section>
+
+</main><nav><button id="prev">← Anterior</button><button id="next">Próximo →</button><span id="counter"></span></nav>
+<script>
+(()=>{const slides=[...document.querySelectorAll('.slide')],counter=document.querySelector('#counter');let page=0;function show(index){page=Math.max(0,Math.min(slides.length-1,index));slides.forEach((s,i)=>s.classList.toggle('active',i===page));counter.textContent=`${page+1} / ${slides.length}`;location.hash=page+1;if(slides[page].contains(document.getElementById('cloud'))&&window.d3)draw()}document.querySelector('#prev').onclick=()=>show(page-1);document.querySelector('#next').onclick=()=>show(page+1);document.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.key==='ArrowRight'||e.key==='PageDown')show(page+1);if(e.key==='ArrowLeft'||e.key==='PageUp')show(page-1)});show(Number(location.hash.slice(1))-1||0);
+const $=id=>document.getElementById(id), colors=['#71e0c3','#ffca79','#fa8a8a','#a99bff','#6bbcff','#f393d2','#e8e56b','#7fd784','#ffa66e','#c0a9a1'];let centers=[],stateVars=[],centerVarX=1,centerVarY=1,centerVarManual=false,P=[],pi=[],points=[],state=null,timer=null,plotZoom=null;
+function normal(){let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}function sample(probs){let x=Math.random();for(let i=0;i<probs.length;i++){x-=probs[i];if(x<=0)return i}return probs.length-1}function distribution(n,diag=-1,bias=0){const a=Array.from({length:n},(_,i)=>-Math.log(1-Math.random())+(i===diag?bias:0)),sum=a.reduce((x,y)=>x+y,0);return a.map(x=>x/sum)}
+function generate(){pause();let n=Math.max(1,Math.min(10,Math.round(Number($('n').value)||1))),bias=Number($('bias').value),sameN=centers.length===n;$('n').value=n;if(!sameN){stateVars=Array(n).fill(1);centerVarManual=false}if(!centerVarManual){let gm=stateVars.length?Math.exp(stateVars.reduce((a,v)=>a+Math.log(v),0)/stateVars.length):1;centerVarX=centerVarY=gm}$('center-x').value=centerVarX;$('center-y').value=centerVarY;centers=Array.from({length:n},()=>[Math.sqrt(centerVarX)*normal(),Math.sqrt(centerVarY)*normal()]);pi=distribution(n);P=Array.from({length:n},(_,i)=>distribution(n,i,bias));points=[];state=null;$('variances').innerHTML='<strong>Variância circular das emissões</strong>'+centers.map((_,i)=>`<label class="state-row"><span style="color:${colors[i]}">Estado ${i+1}</span><input type="number" min="0.01" max="100" step="0.1" value="${stateVars[i]}" data-state="${i}" aria-label="Variância de emissão do estado ${i+1}"></label>`).join('');$('variances').querySelectorAll('input').forEach(input=>input.onchange=()=>{let v=Math.max(.01,Math.min(100,Number(input.value)||.01));input.value=v;stateVars[Number(input.dataset.state)]=v;if(!centerVarManual){let gm=Math.exp(stateVars.reduce((a,x)=>a+Math.log(x),0)/stateVars.length);centerVarX=centerVarY=gm;$('center-x').value=gm;$('center-y').value=gm}draw()});$('legend').innerHTML=centers.map((_,i)=>`<span><i class="dot" style="background:${colors[i]}"></i>Estado ${i+1}</span>`).join('');$('matrix').innerHTML='<b>π₀:</b> '+pi.map(x=>x.toFixed(2)).join(' · ')+'<br><b>P:</b><table><tr><th>de / para</th>'+centers.map((_,i)=>`<th>${i+1}</th>`).join('')+'</tr>'+P.map((row,i)=>`<tr><th>${i+1}</th>${row.map(x=>`<td>${x.toFixed(2)}</td>`).join('')}</tr>`).join('')+'</table>';status();draw()}function editCenterVariances(){centerVarX=Math.max(.01,Math.min(100,Number($('center-x').value)||.01));centerVarY=Math.max(.01,Math.min(100,Number($('center-y').value)||.01));centerVarManual=true}$('center-x').onchange=$('center-y').onchange=editCenterVariances
+function status(){$('status').textContent=points.length?`Passos: ${points.length} · Estado atual: ${state+1} · Última observação: (${points.at(-1).v.map(x=>x.toFixed(2)).join(', ')})`:'Modelo pronto. Gere uma observação.'}function step(){state=state===null?sample(pi):sample(P[state]);points.push({s:state,v:[centers[state][0]+Math.sqrt(stateVars[state])*normal(),centers[state][1]+Math.sqrt(stateVars[state])*normal()]});if(points.length>1000)points.shift();status();draw()}function pause(){if(timer!==null)clearInterval(timer);timer=null;$('play').textContent='▶ Iniciar'}function start(){timer=setInterval(step,1000/Number($('speed').value));$('play').textContent='❚❚ Pausar'}$('generate').onclick=generate;$('step').onclick=step;$('play').onclick=()=>timer===null?start():pause();$('reset').onclick=()=>{pause();points=[];state=null;status();draw()};$('bias').oninput=()=>$('bias-value').textContent=$('bias').value;$('speed').oninput=()=>{$('speed-value').textContent=$('speed').value;if(timer!==null){pause();start()}};
+function draw(){if(!window.d3)return;const svg=d3.select('#cloud'),node=svg.node();if(!node.getClientRects().length)return;const plots=node.parentElement,top=plots.getBoundingClientRect().top,navHeight=document.querySelector('nav').offsetHeight;plots.style.height=Math.max(360,window.innerHeight-top-navHeight-20)+'px';const width=node.clientWidth||900,height=node.clientHeight||250;svg.attr('viewBox',`0 0 ${width} ${height}`);svg.selectAll('*').remove();if(!plotZoom){plotZoom=d3.zoom().scaleExtent([.1,40]).on('zoom',event=>{svg.select('.plot-scene').attr('transform',event.transform)});svg.call(plotZoom)}const scene=svg.append('g').attr('class','plot-scene').attr('transform',d3.zoomTransform(node));let extent=Math.max(1,...centers.map((c,i)=>Math.max(Math.abs(c[0]),Math.abs(c[1]))+3*Math.sqrt(stateVars[i])))*1.15;const sx=d3.scaleLinear().domain([-extent,extent]).range([35,width-35]),sy=d3.scaleLinear().domain([-extent,extent]).range([height-25,25]);scene.append('line').attr('x1',35).attr('x2',width-25).attr('y1',sy(0)).attr('y2',sy(0)).attr('stroke','#52647c');scene.append('line').attr('x1',sx(0)).attr('x2',sx(0)).attr('y1',20).attr('y2',height-25).attr('stroke','#52647c');scene.append('text').attr('x',width-22).attr('y',sy(0)-6).attr('fill','#a9b9ce').text('x');scene.append('text').attr('x',sx(0)+7).attr('y',22).attr('fill','#a9b9ce').text('y');centers.forEach((c,i)=>scene.append('ellipse').attr('cx',sx(c[0])).attr('cy',sy(c[1])).attr('rx',Math.abs(sx(Math.sqrt(stateVars[i]))-sx(0))).attr('ry',Math.abs(sy(Math.sqrt(stateVars[i]))-sy(0))).attr('fill',colors[i]).attr('fill-opacity',.09).attr('stroke',colors[i]).attr('stroke-opacity',.6).attr('stroke-dasharray','5 4'));scene.selectAll('.observation').data(points).join('circle').attr('class','observation').attr('cx',d=>sx(d.v[0])).attr('cy',d=>sy(d.v[1])).attr('r',3.5).attr('fill',d=>colors[d.s]).attr('opacity',.75);scene.selectAll('.center').data(centers).join('circle').attr('class','center').attr('cx',d=>sx(d[0])).attr('cy',d=>sy(d[1])).attr('r',7).attr('fill',(d,i)=>colors[i]).attr('stroke','white').attr('stroke-width',2)}
+$('hmm-details').addEventListener('toggle',()=>{if(window.d3)draw()});
+$('reset-view').onclick=()=>{if(plotZoom)d3.select('#cloud').call(plotZoom.transform,d3.zoomIdentity)};
+if(window.d3)generate();else window.addEventListener('load',()=>{if(window.d3)generate();else $('status').textContent='Não foi possível carregar D3. Verifique a conexão com a internet.'});window.addEventListener('resize',()=>{if(slides[page].contains(document.getElementById('cloud')))draw()});})();
+</script>
+<script>
+(()=>{
+const palettes=['#71e0c3','#ffca79','#fa8a8a','#a99bff','#6bbcff','#f393d2'];
+const models={
+separated:{name:'3 grupos separados',means:[[-4,-2],[0,3],[4,-1]],vars:[[.6,.6],[.7,.7],[.6,.6]],weights:[1/3,1/3,1/3]},
+overlap:{name:'3 grupos sobrepostos',means:[[-2,-1],[0,1.5],[2,-.5]],vars:[[2,2],[2,2],[2,2]],weights:[1/3,1/3,1/3]},
+elongated:{name:'3 grupos alongados',means:[[-4,0],[0,0],[4,0]],vars:[[.25,4],[.3,3],[.25,4]],weights:[1/3,1/3,1/3]},
+unbalanced:{name:'3 grupos com pesos desiguais',means:[[-3,-1],[1,2],[4,-2]],vars:[[1,1],[.6,.6],[.35,.35]],weights:[.7,.2,.1]}
+};
+let data=[],sampleModel=null,domainX=[],domainY=[];
+const widgets=[...document.querySelectorAll('[data-cluster]')].map(root=>({root,kind:root.dataset.cluster,k:3,means:[],vars:[],weights:[],labels:[],resp:[],phase:'assign',iter:0,timer:null,converged:false,notice:''}));
+const el=(w,c)=>w.root.querySelector('.'+c);
+const normal=()=>Math.sqrt(-2*Math.log(Math.max(Number.MIN_VALUE,Math.random())))*Math.cos(2*Math.PI*Math.random());
+const squared=(a,b)=>(a[0]-b[0])**2+(a[1]-b[1])**2;
+function stop(w){if(w.timer!==null)clearInterval(w.timer);w.timer=null;el(w,'fit-play').textContent='▶ Animar'}
+function assignments(w){return data.map(p=>{let best=0;for(let j=1;j<w.k;j++)if(squared(p.v,w.means[j])<squared(p.v,w.means[best]))best=j;return best})}
+function expectation(w){
+ let nll=0;
+ w.resp=data.map(p=>{
+  const logs=w.means.map((m,j)=>Math.log(Math.max(w.weights[j],1e-12))-Math.log(2*Math.PI)-.5*Math.log(w.vars[j][0]*w.vars[j][1])-.5*((p.v[0]-m[0])**2/w.vars[j][0]+(p.v[1]-m[1])**2/w.vars[j][1]));
+  const max=Math.max(...logs),scaled=logs.map(x=>Math.exp(x-max)),sum=scaled.reduce((a,x)=>a+x,0);
+  nll-=max+Math.log(sum);
+  return scaled.map(x=>x/sum);
+ });
+ return nll;
+}
+function restart(w){
+ stop(w);w.k=Math.max(1,Math.min(6,Math.round(Number(el(w,'fit-k').value)||3)));el(w,'fit-k').value=w.k;
+ // Seed means from observed points with squared-distance sampling.
+ w.means=[data[Math.floor(Math.random()*data.length)].v.slice()];
+ while(w.means.length<w.k){const ds=data.map(p=>Math.min(...w.means.map(m=>squared(p.v,m)))),sum=ds.reduce((a,x)=>a+x,0);let r=Math.random()*sum,index=ds.length-1;for(let i=0;i<ds.length;i++){r-=ds[i];if(r<=0){index=i;break}}w.means.push(data[index].v.slice())}
+ const average=[0,1].map(d=>data.reduce((a,p)=>a+p.v[d],0)/data.length);
+ const variance=[0,1].map(d=>Math.max(.03,data.reduce((a,p)=>a+(p.v[d]-average[d])**2,0)/data.length));
+ w.vars=Array.from({length:w.k},()=>variance.slice());w.weights=Array(w.k).fill(1/w.k);w.labels=[];w.resp=[];w.phase=w.kind==='kmeans'?'assign':'E';w.iter=0;w.converged=false;w.notice='';w.previousNll=null;drawCluster(w);
+}
+function advance(w){
+ if(w.converged)return;
+ w.notice='';
+ if(w.kind==='kmeans'){
+  if(w.phase==='assign'){
+   const labels=assignments(w);w.converged=w.labels.length>0&&labels.every((x,i)=>x===w.labels[i]);w.labels=labels;w.phase='update';
+  }else{
+   w.means=w.means.map((m,j)=>{const pts=data.filter((p,i)=>w.labels[i]===j);if(!pts.length){w.notice='Grupo vazio: centro mantido.';return m}return [0,1].map(d=>pts.reduce((a,p)=>a+p.v[d],0)/pts.length)});
+   w.iter++;w.phase='assign';
+  }
+ }else if(w.phase==='E'){
+  const loss=expectation(w);
+  if(w.previousNll!==null&&Math.abs(loss-w.previousNll)/(1+Math.abs(w.previousNll))<1e-6)w.converged=true;
+  w.previousNll=loss;w.phase='M';
+ }else{
+  const counts=Array.from({length:w.k},(_,j)=>w.resp.reduce((a,r)=>a+r[j],0));
+  for(let j=0;j<w.k;j++){
+   const count=counts[j];w.weights[j]=Math.max(count,1e-8);
+   if(count<1e-8){w.notice='Componente de massa quase nula: parâmetros mantidos.';continue}
+   w.means[j]=[0,1].map(d=>data.reduce((a,p,i)=>a+w.resp[i][j]*p.v[d],0)/count);
+   w.vars[j]=[0,1].map(d=>Math.max(.03,data.reduce((a,p,i)=>a+w.resp[i][j]*(p.v[d]-w.means[j][d])**2,0)/count));
+  }
+  const total=w.weights.reduce((a,x)=>a+x,0);w.weights=w.weights.map(x=>x/total);
+  w.iter++;w.phase='E';
+ }
+ if(w.converged||w.iter>=100){w.converged=true;stop(w)}
+ drawCluster(w);
+}
+function sample(){
+ const selected=widgets[0].root.querySelector('.source-model').value;
+ sampleModel=models[selected];
+ const n=Math.max(30,Math.min(600,Math.round(Number(el(widgets[0],'sample-size').value)||240)));
+ data=Array.from({length:n},()=>{let u=Math.random(),label=2;for(let j=0;j<3;j++){u-=sampleModel.weights[j];if(u<=0){label=j;break}}return {label,v:sampleModel.means[label].map((m,d)=>m+Math.sqrt(sampleModel.vars[label][d])*normal())}});
+ const domains=[0,1].map(d=>{const lo=Math.min(...data.map(p=>p.v[d])),hi=Math.max(...data.map(p=>p.v[d])),pad=Math.max(1,(hi-lo)*.12);return [lo-pad,hi+pad]});
+ domainX=domains[0];domainY=domains[1];widgets.forEach(w=>{el(w,'sample-size').value=n;restart(w)});
+}
+function drawCluster(w){
+ if(!window.d3||!data.length)return;
+ const svg=d3.select(el(w,'cluster-plot')),node=svg.node(),width=node.clientWidth||850,height=node.clientHeight||330;
+ svg.attr('viewBox','0 0 '+width+' '+height);svg.selectAll('*').remove();
+ const x=d3.scaleLinear().domain(domainX).range([36,width-15]),y=d3.scaleLinear().domain(domainY).range([height-28,15]);
+ const reveal=el(w,'reveal-source').checked;
+ const plot=svg.append('svg').attr('x',36).attr('y',15).attr('width',width-51).attr('height',height-43).attr('viewBox','36 15 '+(width-51)+' '+(height-43));
+ if(w.kind==='kmeans'){
+  const sites=w.means.map(m=>[x(m[0]),y(m[1])]),voronoi=d3.Delaunay.from(sites).voronoi([36,15,width-15,height-28]);
+  w.means.forEach((m,j)=>plot.append('path').attr('d',voronoi.renderCell(j)).attr('fill',palettes[j]).attr('fill-opacity',.09).attr('stroke','#52647c').attr('stroke-opacity',.25));
+ }else{
+  w.means.forEach((m,j)=>plot.append('ellipse').attr('cx',x(m[0])).attr('cy',y(m[1])).attr('rx',Math.abs(x(m[0]+2*Math.sqrt(w.vars[j][0]))-x(m[0]))).attr('ry',Math.abs(y(m[1]+2*Math.sqrt(w.vars[j][1]))-y(m[1]))).attr('fill',palettes[j]).attr('fill-opacity',.07).attr('stroke',palettes[j]).attr('stroke-width',2));
+ }
+ plot.selectAll('.sample-point').data(data).join('circle').attr('class','sample-point').attr('cx',p=>x(p.v[0])).attr('cy',p=>y(p.v[1])).attr('r',3.4).attr('fill',(p,i)=>{
+  if(reveal)return palettes[p.label];
+  if(w.kind==='kmeans')return w.labels.length?palettes[w.labels[i]]:'#aebcd0';
+  if(!w.resp.length)return '#aebcd0';
+  const rgb=[0,0,0];w.resp[i].forEach((r,j)=>{const c=d3.rgb(palettes[j]);rgb[0]+=r*c.r;rgb[1]+=r*c.g;rgb[2]+=r*c.b});return d3.rgb(...rgb).formatHex();
+ }).attr('opacity',.85);
+ w.means.forEach((m,j)=>{plot.append('path').attr('d',d3.symbol().type(d3.symbolCross).size(160)()).attr('transform','translate('+x(m[0])+','+y(m[1])+')').attr('fill',palettes[j]).attr('stroke','white').attr('stroke-width',1.3);plot.append('text').attr('x',x(m[0])+10).attr('y',y(m[1])-7).attr('fill','white').attr('font-size',12).text(j+1)});
+ svg.append('g').attr('transform','translate(0,'+(height-28)+')').call(d3.axisBottom(x).ticks(7));
+ svg.append('g').attr('transform','translate(36,0)').call(d3.axisLeft(y).ticks(5));
+ let score;
+ if(w.kind==='kmeans'){
+  score=w.labels.length?'Soma das distâncias² = '+data.reduce((a,p,i)=>a+squared(p.v,w.means[w.labels[i]]),0).toFixed(1):'Clique em “Um passo” para atribuir os pontos.';
+ }else{
+  const saved=w.resp;score='−log-verossimilhança = '+expectation(w).toFixed(1);w.resp=saved;
+ }
+ el(w,'cluster-status').textContent='Iteração '+w.iter+' · '+(w.converged?'Ajuste estabilizado.':'Próximo passo: '+(w.phase==='assign'?'atribuir pontos':w.phase==='update'?'atualizar centros':w.phase==='E'?'E: responsabilidades':'M: parâmetros'))+' · '+score+' '+w.notice;
+ el(w,'cluster-legend').innerHTML=palettes.slice(0,reveal?3:w.k).map((c,j)=>'<span><i class="dot" style="background:'+c+'"></i>'+(reveal?'Gerador ':'Ajuste ')+(j+1)+(w.kind==='gmm'&&!reveal?' · peso '+(100*w.weights[j]).toFixed(1)+'%':'')+'</span>').join('');
+ el(w,'source-summary').textContent='Amostra atual: '+sampleModel.name+' · '+data.length+' pontos. '+(reveal?'Cores: rótulos verdadeiros; cruzes: centros ajustados.':w.kind==='gmm'?'Cores misturadas: responsabilidades; cruzes: médias; contornos: 2 desvios-padrão por eixo.':'Cores: atribuições do ajuste; cruzes: centros.');
+ el(w,'cluster-params').textContent='Modelo da amostra: '+sampleModel.weights.map((p,j)=>'grupo '+(j+1)+': peso '+(100*p).toFixed(0)+'%, μ=('+sampleModel.means[j].join(', ')+'), var=('+sampleModel.vars[j].join(', ')+')').join(' · ');
+}
+function initialize(){
+ widgets.forEach(w=>{
+  el(w,'source-model').onchange=()=>widgets.forEach(other=>el(other,'source-model').value=el(w,'source-model').value);
+  el(w,'sample-size').onchange=()=>widgets.forEach(other=>el(other,'sample-size').value=el(w,'sample-size').value);
+  el(w,'sample-data').onclick=sample;el(w,'restart-fit').onclick=()=>restart(w);
+  el(w,'fit-k').onchange=()=>restart(w);el(w,'fit-step').onclick=()=>{stop(w);advance(w)};
+  el(w,'fit-play').onclick=()=>{if(w.timer!==null)stop(w);else if(!w.converged){w.timer=setInterval(()=>advance(w),850);el(w,'fit-play').textContent='❚❚ Pausar'}};
+  el(w,'reveal-source').onchange=()=>drawCluster(w);
+ });
+ sample();
+ const observer=new MutationObserver(()=>widgets.forEach(w=>{if(w.root.closest('.slide').classList.contains('active'))drawCluster(w);else stop(w)}));
+ document.querySelectorAll('.slide').forEach(slide=>observer.observe(slide,{attributes:true,attributeFilter:['class']}));
+ window.addEventListener('resize',()=>widgets.forEach(w=>{if(w.root.closest('.slide').classList.contains('active'))drawCluster(w)}));
+}
+if(window.d3)initialize();else window.addEventListener('load',()=>{if(window.d3)initialize()});
+})();
+</script>
+
+</body></html>
