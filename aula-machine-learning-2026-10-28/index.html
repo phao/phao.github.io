@@ -10,9 +10,9 @@
 .cluster-controls{background:var(--panel);padding:12px;border-radius:12px}
 .cluster-controls label{display:block;margin:6px 0}.cluster-controls select{width:100%;background:#101626;color:var(--ink);padding:5px;font:inherit}
 .cluster-controls input[type=number]{width:70px;background:#101626;color:var(--ink);padding:3px;border:1px solid #64748b;font:inherit}
-.cluster-controls button{margin:4px 2px;padding:5px 8px}.cluster-plot{width:100%;height:clamp(220px,34vh,370px);background:#111c2b;border-radius:12px}
-.cluster-status{min-height:3em;margin:6px 0}.cluster-legend{display:flex;gap:10px;flex-wrap:wrap}.cluster-params{font-size:.85em;margin-top:8px;color:var(--muted)}
-@media(max-width:800px){.cluster-widget{grid-template-columns:1fr}.cluster-plot{height:260px}}
+.cluster-controls button{margin:4px 2px;padding:5px 8px}.cluster-plot{width:100%;height:clamp(320px,48vh,500px);background:#111c2b;border-radius:12px}
+.cluster-info{margin-top:5px}.cluster-info summary{cursor:pointer;color:var(--accent)}.cluster-status{min-height:3em;margin:6px 0}.cluster-legend{display:flex;gap:10px;flex-wrap:wrap}.cluster-params{font-size:.85em;margin-top:8px;color:var(--muted)}
+@media(max-width:800px){.cluster-widget{grid-template-columns:1fr}.cluster-plot{height:320px}}
 
 .plots{display:flex;flex-direction:column;gap:8px;min-height:0}
 .plots #cloud{flex:1 1 0;min-height:180px;height:auto;display:block}
@@ -167,8 +167,8 @@ Q(\theta\mid\theta^{\mathrm{ant}})
 <p>O logaritmo da densidade conjunta separa estado inicial, emissões e transições. A média de cada termo usa as probabilidades posteriores:</p>
 <div class="em-counts-grid">
 <div class="box"><h3>Pesos calculados no passo E</h3>
-<div class="math">$$\gamma_t(k)=\Pr_{\theta^{\mathrm{ant}}}(S_t=k\mid y_{1:T}).$$</div>
-<div class="math">$$\begin{aligned}\xi_t(i,j)&=\Pr_{\theta^{\mathrm{ant}}}\bigl(S_{t-1}=i,\\[-2pt]&\qquad S_t=j\mid y_{1:T}\bigr),\quad t\ge2.\end{aligned}$$</div>
+<div class="math">$$\gamma_t(k)={\Pr}_{\theta^{\mathrm{ant}}}(S_t=k\mid y_{1:T}).$$</div>
+<div class="math">$$\begin{aligned}\xi_t(i,j)&={\Pr}_{\theta^{\mathrm{ant}}}\bigl(S_{t-1}=i, S_t=j\mid y_{1:T}\bigr),\quad t\ge2.\end{aligned}$$</div>
 <p class="small">O <em>forward–backward</em> calcula $\gamma$ e $\xi$. Esses pesos ficam fixos no passo M.</p>
 </div>
 <div class="box"><h3>Objetivo maximizado no passo M</h3>
@@ -187,23 +187,25 @@ Q(\theta\mid\theta^{\mathrm{ant}})
 <section class="slide"><div class="eyebrow">7 · Sem ordem temporal</div><h2>GMM: uma mistura de gaussianas</h2><p>Para observações independentes, cada ponto recebe um rótulo latente $Z_i$; não há matriz de transição.</p><div class="box math">$$p_\theta(y_i)=\sum_{k=1}^N w_k\,\mathcal N(y_i;\mu_k,\Sigma_k),\qquad \mathcal L=-\sum_i\log p_\theta(y_i).$$</div><p>Os pesos $w_k$ somam 1. O posterior $\Pr(Z_i=k\mid y_i)$ é uma associação <em>suave</em>: um ponto pode pertencer parcialmente a vários grupos.</p><p>EM também se aplica: calcula responsabilidades no passo E e atualiza pesos, médias e covariâncias no passo M.</p></section>
 <section class="slide"><div class="eyebrow">Laboratório · GMM</div><h2>Da amostra ao ajuste de uma mistura</h2><p class="small">Primeiro escolha um modelo e amostre. No ajuste, o EM alterna: <strong>E</strong> calcula responsabilidades; <strong>M</strong> atualiza pesos, médias e variâncias. Aqui usamos covariâncias diagonais e variância mínima $0{,}03$ por eixo.</p><div class="cluster-widget" data-cluster="gmm"><div class="cluster-controls">
 <label>Modelo gerador<select class="source-model"><option value="separated">3 grupos separados</option><option value="overlap">3 grupos sobrepostos</option><option value="elongated">3 grupos alongados</option><option value="unbalanced">3 grupos com pesos desiguais</option></select></label>
+<label>Grupos no gerador K′ <input class="source-k" type="number" min="1" max="20" value="3"></label>
 <label>Número de pontos <input class="sample-size" type="number" min="30" max="600" step="30" value="240"></label>
 <button class="sample-data">Amostrar do modelo</button>
 <p class="small">A amostra é compartilhada com o outro widget. O ajuste recebe apenas os pontos.</p>
-<label>Grupos no ajuste K <input class="fit-k" type="number" min="1" max="6" value="3"></label>
+<label>Grupos no ajuste K <input class="fit-k" type="number" min="1" max="20" value="3"></label>
 <button class="restart-fit">Reiniciar ajuste</button><button class="fit-step">Um passo</button><button class="fit-play">▶ Animar</button>
 <label><input class="reveal-source" type="checkbox"> Revelar rótulos geradores</label>
-<div class="cluster-params"></div></div><div><svg class="cluster-plot" role="img" aria-label="Amostra 2D e ajuste de gmm"></svg><p class="cluster-status" aria-live="polite"></p><div class="cluster-legend"></div><p class="small source-summary"></p></div></div></section>
+<details><summary>Parâmetros do modelo gerador</summary><div class="cluster-params"></div></details></div><div><svg class="cluster-plot" role="img" aria-label="Amostra 2D e ajuste de gmm"></svg><p class="cluster-status" aria-live="polite"></p><div class="cluster-legend"></div><p class="small source-summary"></p></div></div></section>
 <section class="slide"><div class="eyebrow">8 · Geometria</div><h2>K-means: proximidade aos centros</h2><div class="box math">$$\min_{z_1,\ldots,z_m,\mu_1,\ldots,\mu_N}\sum_{i=1}^m\lVert y_i-\mu_{z_i}\rVert^2.$$</div><p>Alternamos: atribuir cada ponto ao centro mais próximo; atualizar cada centro como a média dos pontos atribuídos. A atribuição é <strong>rígida</strong>.</p><div class="two"><p><strong>GMM:</strong> modelo probabilístico, grupos com covariâncias e incerteza.</p><p><strong>K-means:</strong> objetivo geométrico, distância euclidiana, sem probabilidades posteriores.</p></div><p class="small">Ambos dependem da escala das variáveis e da inicialização; K-means pode ter grupos vazios.</p></section>
 <section class="slide"><div class="eyebrow">Laboratório · K-means</div><h2>Classificar, recalcular, repetir</h2><p class="small"><strong>1 · Atribuição:</strong> associe cada ponto ao centro mais próximo. <strong>2 · Atualização:</strong> mova cada centro para a média de seu grupo. Repita até as atribuições estabilizarem. As regiões do fundo mostram a classificação pelo centro mais próximo.</p><div class="cluster-widget" data-cluster="kmeans"><div class="cluster-controls">
 <label>Modelo gerador<select class="source-model"><option value="separated">3 grupos separados</option><option value="overlap">3 grupos sobrepostos</option><option value="elongated">3 grupos alongados</option><option value="unbalanced">3 grupos com pesos desiguais</option></select></label>
+<label>Grupos no gerador K′ <input class="source-k" type="number" min="1" max="20" value="3"></label>
 <label>Número de pontos <input class="sample-size" type="number" min="30" max="600" step="30" value="240"></label>
 <button class="sample-data">Amostrar do modelo</button>
 <p class="small">A amostra é compartilhada com o outro widget. O ajuste recebe apenas os pontos.</p>
-<label>Grupos no ajuste K <input class="fit-k" type="number" min="1" max="6" value="3"></label>
+<label>Grupos no ajuste K <input class="fit-k" type="number" min="1" max="20" value="3"></label>
 <button class="restart-fit">Reiniciar ajuste</button><button class="fit-step">Um passo</button><button class="fit-play">▶ Animar</button>
 <label><input class="reveal-source" type="checkbox"> Revelar rótulos geradores</label>
-<div class="cluster-params"></div></div><div><svg class="cluster-plot" role="img" aria-label="Amostra 2D e ajuste de kmeans"></svg><p class="cluster-status" aria-live="polite"></p><div class="cluster-legend"></div><p class="small source-summary"></p></div></div></section>
+<details><summary>Parâmetros do modelo gerador</summary><div class="cluster-params"></div></details></div><div><svg class="cluster-plot" role="img" aria-label="Amostra 2D e ajuste de kmeans"></svg><p class="cluster-status" aria-live="polite"></p><div class="cluster-legend"></div><p class="small source-summary"></p></div></div></section>
 <section class="slide"><div class="eyebrow">9 · Dinâmica por regime</div><h2>MS-VAR: cada estado tem sua regressão</h2><p>Agora a média da observação depende também do passado observado. Para $t=p,\ldots,T-1$:</p><div class="box math">$$Y_t=c_{S_t}+\sum_{\ell=1}^{p}A_{\ell,S_t}Y_{t-\ell}+B_{S_t}x_t+\varepsilon_t,\qquad \varepsilon_t\mid S_t=k\sim\mathcal N(0,\Sigma_k).$$</div><p>$Y_t\in\mathbb R^d$; $x_t$ representa covariáveis dadas. $p$ é o número de defasagens, e cada estado tem seus próprios coeficientes e covariância.</p><p>Assim, um regime pode representar uma <em>dinâmica</em> diferente, não apenas uma nuvem em torno de outra média.</p></section>
 <section class="slide"><div class="eyebrow">10 · A mesma arquitetura de loss</div><h2>Verossimilhança do MS-VAR</h2><p>Condicionamos no prefixo observado $y_{0:p-1}$ e nas covariáveis $x$. Para cada regime, a densidade local é</p><div class="math">$$\psi_{t,k}=\mathcal N\!\left(y_t;c_k+\sum_{\ell=1}^{p}A_{\ell,k}y_{t-\ell}+B_kx_t,\Sigma_k\right).$$</div><div class="box math">$$\mathcal L(\theta)=-\log\sum_{s_{p:T-1}}\left[\pi_{s_p}\psi_{p,s_p}\prod_{t=p+1}^{T-1}P_{s_{t-1}s_t}\psi_{t,s_t}\right].$$</div><p>O forward é o mesmo, trocando $\phi_k(y_t)$ por $\psi_{t,k}$. O prefixo fornece as defasagens: não entra como observação adicional na loss condicional. Aqui $\pi$ é a distribuição do primeiro estado modelado, $S_p$.</p></section>
 <section class="slide"><div class="eyebrow">11 · Fechamento</div><h2>Uma família de perguntas</h2><div class="box"><p><strong>K-means:</strong> quais pontos estão próximos?</p><p><strong>GMM:</strong> quais distribuições explicam as nuvens?</p><p><strong>HMM:</strong> como os grupos evoluem no tempo?</p><p><strong>MS-VAR:</strong> como a própria dinâmica muda entre regimes?</p></div><p>Para discutir: se dois regimes têm emissões semelhantes, como a persistência pode ajudar a distingui-los? Quando ela pode nos induzir ao erro?</p><p class="small">Base conceitual: notas pessoais <code>em_and_direct.tex</code>, seções sobre HMM, MS-VAR, verossimilhança marginal e EM. Nesta aula usamos índices de HMM de 1 a T e MS-VAR de 0 a T−1.</p></section>
@@ -287,13 +289,21 @@ if(window.d3)generate();else window.addEventListener('load',()=>{if(window.d3)ge
 </script>
 <script>
 (()=>{
-const palettes=['#71e0c3','#ffca79','#fa8a8a','#a99bff','#6bbcff','#f393d2'];
+const palettes=['#71e0c3','#ffca79','#fa8a8a','#a99bff','#6bbcff','#f393d2','#e8e56b','#7fd784','#ffa66e','#c0a9a1','#00b8d9','#d9a5ff','#ff4f80','#a4cd42','#ffb5a7','#8da0cb','#b3de69','#d95f02','#1b9e77','#e6ab02'];
 const models={
 separated:{name:'3 grupos separados',means:[[-4,-2],[0,3],[4,-1]],vars:[[.6,.6],[.7,.7],[.6,.6]],weights:[1/3,1/3,1/3]},
 overlap:{name:'3 grupos sobrepostos',means:[[-2,-1],[0,1.5],[2,-.5]],vars:[[2,2],[2,2],[2,2]],weights:[1/3,1/3,1/3]},
 elongated:{name:'3 grupos alongados',means:[[-4,0],[0,0],[4,0]],vars:[[.25,4],[.3,3],[.25,4]],weights:[1/3,1/3,1/3]},
 unbalanced:{name:'3 grupos com pesos desiguais',means:[[-3,-1],[1,2],[4,-2]],vars:[[1,1],[.6,.6],[.35,.35]],weights:[.7,.2,.1]}
 };
+function buildModel(selected,k){
+ const base=models[selected],suffix=base.name.replace(/^3 /,'');
+ if(k===3)return {...base,name:k+' '+suffix,means:base.means.map(m=>m.slice()),vars:base.vars.map(v=>v.slice()),weights:base.weights.slice()};
+ const cols=Math.ceil(Math.sqrt(k)),rows=Math.ceil(k/cols),spacing=selected==='overlap'?1.6:4.5;
+ const means=Array.from({length:k},(_,j)=>selected==='elongated'?[(j-(k-1)/2)*4.5,0]:[(j%cols-(cols-1)/2)*spacing,(Math.floor(j/cols)-(rows-1)/2)*spacing]);
+ const weights=Array.from({length:k},(_,j)=>selected==='unbalanced'?1/Math.pow(j+1,1.4):1),total=weights.reduce((a,v)=>a+v,0);
+ return {name:k+' '+suffix,means,vars:Array.from({length:k},(_,j)=>base.vars[j%base.vars.length].slice()),weights:weights.map(v=>v/total)};
+}
 let data=[],sampleModel=null,domainX=[],domainY=[];
 const widgets=[...document.querySelectorAll('[data-cluster]')].map(root=>({root,kind:root.dataset.cluster,k:3,means:[],vars:[],weights:[],labels:[],resp:[],phase:'assign',iter:0,timer:null,converged:false,notice:''}));
 const el=(w,c)=>w.root.querySelector('.'+c);
@@ -312,7 +322,7 @@ function expectation(w){
  return nll;
 }
 function restart(w){
- stop(w);w.k=Math.max(1,Math.min(6,Math.round(Number(el(w,'fit-k').value)||3)));el(w,'fit-k').value=w.k;
+ stop(w);w.k=Math.max(1,Math.min(20,Math.round(Number(el(w,'fit-k').value)||3)));el(w,'fit-k').value=w.k;
  // Seed means from observed points with squared-distance sampling.
  w.means=[data[Math.floor(Math.random()*data.length)].v.slice()];
  while(w.means.length<w.k){const ds=data.map(p=>Math.min(...w.means.map(m=>squared(p.v,m)))),sum=ds.reduce((a,x)=>a+x,0);let r=Math.random()*sum,index=ds.length-1;for(let i=0;i<ds.length;i++){r-=ds[i];if(r<=0){index=i;break}}w.means.push(data[index].v.slice())}
@@ -350,9 +360,11 @@ function advance(w){
 }
 function sample(){
  const selected=widgets[0].root.querySelector('.source-model').value;
- sampleModel=models[selected];
+ const sourceK=Math.max(1,Math.min(20,Math.round(Number(el(widgets[0],'source-k').value)||3)));
+ widgets.forEach(w=>el(w,'source-k').value=sourceK);
+ sampleModel=buildModel(selected,sourceK);
  const n=Math.max(30,Math.min(600,Math.round(Number(el(widgets[0],'sample-size').value)||240)));
- data=Array.from({length:n},()=>{let u=Math.random(),label=2;for(let j=0;j<3;j++){u-=sampleModel.weights[j];if(u<=0){label=j;break}}return {label,v:sampleModel.means[label].map((m,d)=>m+Math.sqrt(sampleModel.vars[label][d])*normal())}});
+ data=Array.from({length:n},()=>{let u=Math.random(),label=sourceK-1;for(let j=0;j<sourceK;j++){u-=sampleModel.weights[j];if(u<=0){label=j;break}}return {label,v:sampleModel.means[label].map((m,d)=>m+Math.sqrt(sampleModel.vars[label][d])*normal())}});
  const domains=[0,1].map(d=>{const lo=Math.min(...data.map(p=>p.v[d])),hi=Math.max(...data.map(p=>p.v[d])),pad=Math.max(1,(hi-lo)*.12);return [lo-pad,hi+pad]});
  domainX=domains[0];domainY=domains[1];widgets.forEach(w=>{el(w,'sample-size').value=n;restart(w)});
 }
@@ -362,7 +374,7 @@ function drawCluster(w){
  svg.attr('viewBox','0 0 '+width+' '+height);svg.selectAll('*').remove();
  const x=d3.scaleLinear().domain(domainX).range([36,width-15]),y=d3.scaleLinear().domain(domainY).range([height-28,15]);
  const reveal=el(w,'reveal-source').checked;
- const plot=svg.append('svg').attr('x',36).attr('y',15).attr('width',width-51).attr('height',height-43).attr('viewBox','36 15 '+(width-51)+' '+(height-43));
+ const plot=svg;
  if(w.kind==='kmeans'){
   const sites=w.means.map(m=>[x(m[0]),y(m[1])]),voronoi=d3.Delaunay.from(sites).voronoi([36,15,width-15,height-28]);
   w.means.forEach((m,j)=>plot.append('path').attr('d',voronoi.renderCell(j)).attr('fill',palettes[j]).attr('fill-opacity',.09).attr('stroke','#52647c').attr('stroke-opacity',.25));
@@ -385,13 +397,17 @@ function drawCluster(w){
   const saved=w.resp;score='−log-verossimilhança = '+expectation(w).toFixed(1);w.resp=saved;
  }
  el(w,'cluster-status').textContent='Iteração '+w.iter+' · '+(w.converged?'Ajuste estabilizado.':'Próximo passo: '+(w.phase==='assign'?'atribuir pontos':w.phase==='update'?'atualizar centros':w.phase==='E'?'E: responsabilidades':'M: parâmetros'))+' · '+score+' '+w.notice;
- el(w,'cluster-legend').innerHTML=palettes.slice(0,reveal?3:w.k).map((c,j)=>'<span><i class="dot" style="background:'+c+'"></i>'+(reveal?'Gerador ':'Ajuste ')+(j+1)+(w.kind==='gmm'&&!reveal?' · peso '+(100*w.weights[j]).toFixed(1)+'%':'')+'</span>').join('');
+ el(w,'cluster-legend').innerHTML=palettes.slice(0,reveal?sampleModel.means.length:w.k).map((c,j)=>'<span><i class="dot" style="background:'+c+'"></i>'+(reveal?'Gerador ':'Ajuste ')+(j+1)+(w.kind==='gmm'&&!reveal?' · peso '+(100*w.weights[j]).toFixed(1)+'%':'')+'</span>').join('');
  el(w,'source-summary').textContent='Amostra atual: '+sampleModel.name+' · '+data.length+' pontos. '+(reveal?'Cores: rótulos verdadeiros; cruzes: centros ajustados.':w.kind==='gmm'?'Cores misturadas: responsabilidades; cruzes: médias; contornos: 2 desvios-padrão por eixo.':'Cores: atribuições do ajuste; cruzes: centros.');
  el(w,'cluster-params').textContent='Modelo da amostra: '+sampleModel.weights.map((p,j)=>'grupo '+(j+1)+': peso '+(100*p).toFixed(0)+'%, μ=('+sampleModel.means[j].join(', ')+'), var=('+sampleModel.vars[j].join(', ')+')').join(' · ');
 }
 function initialize(){
  widgets.forEach(w=>{
   el(w,'source-model').onchange=()=>widgets.forEach(other=>el(other,'source-model').value=el(w,'source-model').value);
+  el(w,'source-k').onchange=()=>{
+   const k=Math.max(1,Math.min(20,Math.round(Number(el(w,'source-k').value)||3)));
+   widgets.forEach(other=>{el(other,'source-k').value=k;el(other,'source-model').querySelectorAll('option').forEach(option=>option.textContent=option.textContent.replace(/^\d+ /,k+' '))});
+  };
   el(w,'sample-size').onchange=()=>widgets.forEach(other=>el(other,'sample-size').value=el(w,'sample-size').value);
   el(w,'sample-data').onclick=sample;el(w,'restart-fit').onclick=()=>restart(w);
   el(w,'fit-k').onchange=()=>restart(w);el(w,'fit-step').onclick=()=>{stop(w);advance(w)};
